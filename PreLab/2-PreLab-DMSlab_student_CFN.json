@@ -1,0 +1,387 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Outputs": {
+    "DMSLabRoleS3": {
+      "Description": "The DMS serivce role",
+			"Value": { "Fn::GetAtt" : [ "DMSLabRoleS3", "Arn" ] }
+		},
+		"GlueLabRole": {
+			"Description": "The Glue service role",
+			"Value": {
+				"Ref": "GlueLabRole"
+			}
+    },
+    "BucketName" : {
+      "Description" : "S3 Bucket that was created" ,
+      "Value" : { 
+              "Ref" : "DMSLabS3Bucket"
+          }
+      }
+	},
+  "Resources": {
+    "dmslabstudentvpc": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": "10.0.0.0/24",
+        "InstanceTenancy": "default",
+        "EnableDnsSupport": "true",
+        "EnableDnsHostnames": "false",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "dmslstudv1"
+          }
+        ]
+      }
+    },
+    "dmslabstudentsubnet1": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "CidrBlock": "10.0.0.0/26",
+        "AvailabilityZone": "us-east-1a",
+        "VpcId": {
+          "Ref": "dmslabstudentvpc"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "dmslstudv1"
+          }
+        ]
+      }
+    },
+    "dmslabstudentsubnet2": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "CidrBlock": "10.0.0.128/26",
+        "AvailabilityZone": "us-east-1c",
+        "VpcId": {
+          "Ref": "dmslabstudentvpc"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "dmslstudv1"
+          }
+        ]
+      }
+    },
+    "dmslabstudentsubnet3": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "CidrBlock": "10.0.0.64/26",
+        "AvailabilityZone": "us-east-1b",
+        "VpcId": {
+          "Ref": "dmslabstudentvpc"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "dmslstudv1"
+          }
+        ]
+      }
+    },
+    "dmslabstudentigw": {
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "DMSLab-IGW"
+          }
+        ]
+      }
+    },
+    "dopt1b68e47c": {
+      "Type": "AWS::EC2::DHCPOptions",
+      "Properties": {
+        "DomainName": "ec2.internal",
+        "DomainNameServers": [
+          "AmazonProvidedDNS"
+        ]
+      }
+    },
+    "dmslabstudentacl": {
+      "Type": "AWS::EC2::NetworkAcl",
+      "Properties": {
+        "VpcId": {
+          "Ref": "dmslabstudentvpc"
+        }
+      }
+    },
+    "dmslabstudentrtable": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "dmslabstudentvpc"
+        }
+      }
+    },
+    "sgdefault": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "default VPC security group",
+        "VpcId": {
+          "Ref": "dmslabstudentvpc"
+        }
+      }
+    },
+    "acl1": {
+      "Type": "AWS::EC2::NetworkAclEntry",
+      "Properties": {
+        "CidrBlock": "0.0.0.0/0",
+        "Egress": "true",
+        "Protocol": "-1",
+        "RuleAction": "allow",
+        "RuleNumber": "100",
+        "NetworkAclId": {
+          "Ref": "dmslabstudentacl"
+        }
+      }
+    },
+    "acl2": {
+      "Type": "AWS::EC2::NetworkAclEntry",
+      "Properties": {
+        "CidrBlock": "0.0.0.0/0",
+        "Protocol": "-1",
+        "RuleAction": "allow",
+        "RuleNumber": "100",
+        "NetworkAclId": {
+          "Ref": "dmslabstudentacl"
+        }
+      }
+    },
+    "subnetacl1": {
+      "Type": "AWS::EC2::SubnetNetworkAclAssociation",
+      "Properties": {
+        "NetworkAclId": {
+          "Ref": "dmslabstudentacl"
+        },
+        "SubnetId": {
+          "Ref": "dmslabstudentsubnet3"
+        }
+      }
+    },
+    "subnetacl2": {
+      "Type": "AWS::EC2::SubnetNetworkAclAssociation",
+      "Properties": {
+        "NetworkAclId": {
+          "Ref": "dmslabstudentacl"
+        },
+        "SubnetId": {
+          "Ref": "dmslabstudentsubnet1"
+        }
+      }
+    },
+    "subnetacl3": {
+      "Type": "AWS::EC2::SubnetNetworkAclAssociation",
+      "Properties": {
+        "NetworkAclId": {
+          "Ref": "dmslabstudentacl"
+        },
+        "SubnetId": {
+          "Ref": "dmslabstudentsubnet2"
+        }
+      }
+    },
+    "gw1": {
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "VpcId": {
+          "Ref": "dmslabstudentvpc"
+        },
+        "InternetGatewayId": {
+          "Ref": "dmslabstudentigw"
+        }
+      }
+    },
+    "subnetroute1": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "dmslabstudentrtable"
+        },
+        "SubnetId": {
+          "Ref": "dmslabstudentsubnet1"
+        }
+      }
+    },
+    "subnetroute3": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "dmslabstudentrtable"
+        },
+        "SubnetId": {
+          "Ref": "dmslabstudentsubnet3"
+        }
+      }
+    },
+    "subnetroute4": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "dmslabstudentrtable"
+        },
+        "SubnetId": {
+          "Ref": "dmslabstudentsubnet2"
+        }
+      }
+    },
+    "route1": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "RouteTableId": {
+          "Ref": "dmslabstudentrtable"
+        },
+        "GatewayId": {
+          "Ref": "dmslabstudentigw"
+        }
+      },
+      "DependsOn": "gw1"
+    },
+    "dchpassoc1": {
+      "Type": "AWS::EC2::VPCDHCPOptionsAssociation",
+      "Properties": {
+        "VpcId": {
+          "Ref": "dmslabstudentvpc"
+        },
+        "DhcpOptionsId": {
+          "Ref": "dopt1b68e47c"
+        }
+      }
+    },
+    "ingress1": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": {
+          "Ref": "sgdefault"
+        },
+        "IpProtocol": "-1",
+        "SourceSecurityGroupId": {
+          "Ref": "sgdefault"
+        },
+        "SourceSecurityGroupOwnerId": "105763911922"
+      }
+    },
+    "egress1": {
+      "Type": "AWS::EC2::SecurityGroupEgress",
+      "Properties": {
+        "GroupId": {
+          "Ref": "sgdefault"
+        },
+        "IpProtocol": "-1",
+        "CidrIp": "0.0.0.0/0"
+      }
+    },
+    "DMSLabS3Bucket": {
+      "Type": "AWS::S3::Bucket"
+    },
+    "DMSLabS3Policy": {
+      "Type": "AWS::IAM::Policy",
+      "Properties": {
+        "PolicyName": "DMSLabS3Policy",
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:DeleteObject"
+              ],
+              "Resource": [
+                            {
+                              "Fn::Join": [
+                                    "",
+                                        [
+                                          {
+                                            "Fn::GetAtt": [
+                                                "DMSLabS3Bucket",
+                                                  "Arn"
+                                                ]
+                                            },
+                                            "/*"
+                                        ]
+                                    ]
+                                }
+                            ]
+                        },
+            {
+                "Effect": "Allow",
+                      "Action": [
+                          "s3:ListBucket"
+                            ],
+                            "Resource": [
+                                {
+                                    "Fn::GetAtt": [
+                                        "DMSLabS3Bucket",
+                                        "Arn"
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+        "Roles": [
+          {
+            "Ref": "DMSLabRoleS3"
+          },
+          {
+            "Ref": "GlueLabRole"
+          }
+        ]
+      }
+    },
+    "DMSLabRoleS3": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "dms.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "Path": "/"
+      }
+    },
+    "GlueLabRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "glue.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "Path": "/service-role/",
+        "ManagedPolicyArns": [
+          "arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,398 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Parameters" : {
+        "KeyName": {
+          "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instance",
+          "Type": "AWS::EC2::KeyPair::KeyName",
+          "ConstraintDescription" : "must be the name of an existing EC2 KeyPair in us-east-1 only."
+        }
+    },
+    "Resources": {
+        "dmsinstructorvpc": {
+            "Type": "AWS::EC2::VPC",
+            "Properties": {
+                "CidrBlock": "10.0.0.0/24",
+                "InstanceTenancy": "default",
+                "EnableDnsSupport": "true",
+                "EnableDnsHostnames": "true",
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "DMSLabSourceDB"
+                    }
+                ]
+            }
+        },
+        "RDSSubNet": {
+            "Type": "AWS::EC2::Subnet",
+            "Properties": {
+                "CidrBlock": "10.0.0.0/28",
+                "AvailabilityZone": "us-east-1d",
+                "VpcId": {
+                    "Ref": "dmsinstructorvpc"
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "DMSLabRDS1"
+                    }
+                ]
+            }
+        },
+        "EC2SubNet": {
+            "Type": "AWS::EC2::Subnet",
+            "Properties": {
+                "CidrBlock": "10.0.0.32/28",
+                "AvailabilityZone": "us-east-1c",
+                "VpcId": {
+                    "Ref": "dmsinstructorvpc"
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "DMSLabEC2"
+                    }
+                ]
+            }
+        },
+        "RDSSubNet2": {
+            "Type": "AWS::EC2::Subnet",
+            "Properties": {
+                "CidrBlock": "10.0.0.16/28",
+                "AvailabilityZone": "us-east-1b",
+                "VpcId": {
+                "Ref": "dmsinstructorvpc"
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "DMSLabRDS2"
+                    }
+                ]
+            }
+        },
+        "igw0887475a258f00277": {
+            "Type": "AWS::EC2::InternetGateway",
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "DMSLabIGW"
+                    }
+                ]
+            }
+        },
+        "dopt1cc25278": {
+            "Type": "AWS::EC2::DHCPOptions",
+            "Properties": {
+                "DomainName": "ec2.internal",
+                "DomainNameServers": [
+                    "AmazonProvidedDNS"
+                ]
+            }
+        },
+        "rtb0c3fae104a7b64456": {
+            "Type": "AWS::EC2::RouteTable",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "dmsinstructorvpc"
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "DMSLabRT"
+                    }
+                ]
+            }
+        },
+        "instancei0f63b887480639040": {
+            "Type": "AWS::EC2::Instance",
+            "Properties": {
+                "DisableApiTermination": "false",
+                "InstanceInitiatedShutdownBehavior": "stop",
+                "EbsOptimized": "true",
+                "ImageId": "ami-04681a1dbd79675a5",
+                "InstanceType": "t3.2xlarge",
+                "KeyName": {"Ref" : "KeyName" },
+                "UserData" : {"Fn::Base64" : {"Fn::Join" : ["", [
+                    "#!/bin/bash -xe\n",
+                    "yum install -y postgresql\n",
+                    "yum install -y git\n",
+                    "yum update -y\n",
+		    "cd /home/ec2-user\n",
+                    "git clone https://github.com/aws-samples/aws-database-migration-samples.git\n"
+                    ]]}},
+                "Monitoring": "false",
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "DMSLabEC2"
+                    }
+                ],
+                "NetworkInterfaces": [
+                    {
+                        "DeleteOnTermination": "true",
+                        "Description": "Primary network interface",
+                        "DeviceIndex": 0,
+                        "SubnetId": {
+                            "Ref": "EC2SubNet"
+                        },
+                        "PrivateIpAddresses": [
+                            {
+                                "PrivateIpAddress": "10.0.0.40",
+                                "Primary": "true"
+                            }
+                        ],
+                        "GroupSet": [
+                            {
+                                "Ref": "sgDMSLabSG"
+                            }
+                        ],
+                        "AssociatePublicIpAddress": "true"
+                    }
+                ]
+            }
+        },
+        "rdsdmslabdb": {
+            "Type": "AWS::RDS::DBInstance",
+            "Properties": {
+                "AllocatedStorage": "20",
+                "AllowMajorVersionUpgrade": "false",
+                "AutoMinorVersionUpgrade": "true",
+                "DBInstanceClass": "db.t2.xlarge",
+		"DBInstanceIdentifier": "dmslabinstance",
+                "Port": "5432",
+                "PubliclyAccessible": "true",
+                "StorageType": "gp2",
+                "BackupRetentionPeriod": "7",
+                "MasterUsername": "master",
+                "MasterUserPassword": "master123",
+                "PreferredBackupWindow": "04:00-04:30",
+                "PreferredMaintenanceWindow": "sun:05:20-sun:05:50",
+                "DBName": "sportstickets",
+                "Engine": "postgres",
+                "EngineVersion": "10.4",
+                "LicenseModel": "postgresql-license",
+                "DBSubnetGroupName": {
+                    "Ref": "dbsubnetdefaultdmsinstructorvpc"
+                },
+                "VPCSecurityGroups": [
+                    {
+                        "Ref": "sgrdslaunchwizard2"
+                    }
+                ],
+                "Tags": [
+                    {
+                        "Key": "workload-type",
+                        "Value": "other"
+                    }
+                ]
+            }
+        },
+        "dbsubnetdefaultdmsinstructorvpc": {
+            "Type": "AWS::RDS::DBSubnetGroup",
+            "Properties": {
+                "DBSubnetGroupDescription": "Created from the RDS Management Console",
+                "SubnetIds": [
+                    {
+                        "Ref": "RDSSubNet"
+                    },
+                    {
+                        "Ref": "EC2SubNet"
+                    },
+                    {
+                        "Ref": "RDSSubNet2"
+                    }
+                ]
+            }
+        },
+        "sgDMSLabSG": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "GroupDescription": "launch-wizard-6 created 2018-08-29T15:10:01.302-04:00",
+                "VpcId": {
+                    "Ref": "dmsinstructorvpc"
+                }
+            }
+        },
+        "sgrdslaunchwizard2": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "GroupDescription": "Created from the RDS Management Console: 2018/08/29 18:14:15",
+                "VpcId": {
+                    "Ref": "dmsinstructorvpc"
+                },
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "DMSLabRDS-SG"
+                    }
+                ]
+            }
+        },
+        "dbsgdefault": {
+            "Type": "AWS::RDS::DBSecurityGroup",
+            "Properties": {
+                "GroupDescription": "default"
+            }
+        },
+        "gw1": {
+            "Type": "AWS::EC2::VPCGatewayAttachment",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "dmsinstructorvpc"
+                },
+                "InternetGatewayId": {
+                    "Ref": "igw0887475a258f00277"
+                }
+            }
+        },
+        "subnetroute1": {
+            "Type": "AWS::EC2::SubnetRouteTableAssociation",
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "rtb0c3fae104a7b64456"
+                },
+                "SubnetId": {
+                    "Ref": "RDSSubNet2"
+                }
+            }
+        },
+        "subnetroute2": {
+            "Type": "AWS::EC2::SubnetRouteTableAssociation",
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "rtb0c3fae104a7b64456"
+                },
+                "SubnetId": {
+                    "Ref": "RDSSubNet"
+                }
+            }
+        },
+        "subnetroute3": {
+            "Type": "AWS::EC2::SubnetRouteTableAssociation",
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "rtb0c3fae104a7b64456"
+                },
+                "SubnetId": {
+                    "Ref": "EC2SubNet"
+                }
+            }
+        },
+        "route1": {
+            "Type": "AWS::EC2::Route",
+            "Properties": {
+                "DestinationCidrBlock": "0.0.0.0/0",
+                "RouteTableId": {
+                    "Ref": "rtb0c3fae104a7b64456"
+                },
+                "GatewayId": {
+                    "Ref": "igw0887475a258f00277"
+                }
+            },
+            "DependsOn": "gw1"
+        },
+        "dchpassoc1": {
+            "Type": "AWS::EC2::VPCDHCPOptionsAssociation",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "dmsinstructorvpc"
+                },
+                "DhcpOptionsId": {
+                    "Ref": "dopt1cc25278"
+                }
+            }
+        },
+        "ingress1": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "Properties": {
+                "GroupId": {
+                    "Ref": "sgDMSLabSG"
+                },
+                "IpProtocol": "tcp",
+                "FromPort": "22",
+                "ToPort": "22",
+                "CidrIp": "0.0.0.0/0"
+            }
+        },
+        "ingress2": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "Properties": {
+                "GroupId": {
+                    "Ref": "sgrdslaunchwizard2"
+                },
+                "IpProtocol": "tcp",
+                "FromPort": "5432",
+                "ToPort": "5432",
+                "SourceSecurityGroupId": {
+                    "Ref": "sgDMSLabSG"
+                },
+                "SourceSecurityGroupOwnerId": "649225637812"
+            }
+        },
+        "ingress3": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "Properties": {
+                "GroupId": {
+                    "Ref": "sgrdslaunchwizard2"
+                },
+                "IpProtocol": "tcp",
+                "FromPort": "5432",
+                "ToPort": "5432",
+                "CidrIp": "72.21.196.67/32"
+            }
+        },
+        "ingress4": {
+            "Type": "AWS::EC2::SecurityGroupIngress",
+            "Properties": {
+                "GroupId": {
+                    "Ref": "sgrdslaunchwizard2"
+                },
+                "IpProtocol": "tcp",
+                "FromPort": "5432",
+                "ToPort": "5432",
+                "CidrIp": "0.0.0.0/0"
+            }
+        },
+        "egress1": {
+            "Type": "AWS::EC2::SecurityGroupEgress",
+            "Properties": {
+                "GroupId": {
+                    "Ref": "sgDMSLabSG"
+                },
+                "IpProtocol": "-1",
+                "CidrIp": "0.0.0.0/0"
+            }
+        },
+        "egress2": {
+            "Type": "AWS::EC2::SecurityGroupEgress",
+            "Properties": {
+                "GroupId": {
+                    "Ref": "sgrdslaunchwizard2"
+                },
+                "IpProtocol": "-1",
+                "CidrIp": "0.0.0.0/0"
+            }
+        }
+    },
+    "Description": "DMS Lab Instructor account",
+    "Metadata": {
+        "AWS::CloudFormation::Designer": {
+            "a79fb943-c167-4e59-8eda-911d4acc331f": {
+                "size": {
+                    "width": 60,
+                    "height": 60
+                },
+                "position": {
+                    "x": 810,
+                    "y": 390
+                },
+                "z": 1,
+                "embeds": []
+            }
+        }
+    }
+}
+
+
