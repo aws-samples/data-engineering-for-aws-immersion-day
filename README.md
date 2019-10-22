@@ -43,27 +43,27 @@ Click the **Deploy to AWS** icons below to stand up the core workshop infrastruc
 
 | Region | Launch Template |
 | ------------ | ------------- | 
-**N.Virginia** (us-east-1) | [![Launch CloudFormation](/event_engine/assets/images/00-deploy-to-aws.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=dmslab-student&templateURL=https://immersionday-lab.s3.amazonaws.com/data-engineering/DMSlab_student_CFN.json)  
+**N.Virginia** (us-east-1) | [![Launch CloudFormation](/ee_helper/assets/images/00-deploy-to-aws.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=dmslab-student&templateURL=https://immersionday-lab.s3.amazonaws.com/data-engineering/DMSlab_student_CFN.json)  
 
 
 2. The template will automatically take you to the CloudFormation Console and start the stack creation process in **N.Virginia** region.
 
 Proceed through the wizard to launch the stack. Leave all options at their default values, but make sure to check the box to allow CloudFormation to create IAM roles on your behalf:
 
-![IAM resources acknowledgement](/event_engine/assets/images/00-cf-create.png)
+![IAM resources acknowledgement](/ee_helper/assets/images/00-cf-create.png)
 
 See the *Events* tab for progress on the stack launch that may take up to 5 minutes. You can also see details of any problems here if the launch fails. Proceed to the next step once the stack status advances to "CREATE_COMPLETE".
 
 3. Click in the Output tab and take note of value for BucketName, GlueLabRole and DMSLabRoleS3, which you are going to use in future labs.
 
-![output tab](/event_engine/assets/images/00-cf-output.png)
+![output tab](/ee_helper/assets/images/00-cf-output.png)
 
 
 
 ### Checkpoint:
 At this point, the data lake workshop environment has been setup, looks like this:
 
-![all output](/event_engine/assets/images/00-cf-final-output.png)
+![all output](/ee_helper/assets/images/00-cf-final-output.png)
 
 [*^ back to top*](#Requirements)
 
@@ -80,7 +80,7 @@ Download the [lab1 instruction file](https://immersionday-lab.s3.amazonaws.com/d
 ### Checkpoint:
 At this point, your DMS task should be finished with 'load Complete' status, and 16 tables are loaded in S3 from RDS by DMS
 
-![Lab 1 done](/event_engine/assets/images/01-lab1-done.png)
+![Lab 1 done](/ee_helper/assets/images/01-lab1-done.png)
 
 [*^ back to the top*](#Requirements)
 
@@ -90,13 +90,13 @@ Download the [lab2 instruction file](https://immersionday-lab.s3.amazonaws.com/d
 
 ### Here's what you're going to work on in lab 2:
 
-![Lab 2 Architecture](/event_engine/assets/images/02-arch.png)
+![Lab 2 Architecture](/ee_helper/assets/images/02-arch.png)
 
 
 ### Checkpoint:
 Nice work!  You've successfully converted CSV raw data to Parquet, and added parquet tables to the Glue Data Catalog
 
-![Lab 2 done](/event_engine/assets/images/02-lab2-done.png)
+![Lab 2 done](/ee_helper/assets/images/02-lab2-done.png)
 
 
 [*^ back to top*](#Requirements)
@@ -107,7 +107,7 @@ Download the [lab3 instruction file](https://immersionday-lab.s3.amazonaws.com/d
 
 ### Here's what you're going to work on in lab 3:
 
-![Lab 3 Architecture](/event_engine/assets/images/03-arch.png)
+![Lab 3 Architecture](/ee_helper/assets/images/03-arch.png)
 
 
 ### Checkpoint:
@@ -120,7 +120,7 @@ Sweet! Now you have queried the Data Lake and visualized it in QuickSight. Next,
 Download the [lab4 instruction file](https://immersionday-lab.s3.amazonaws.com/data-engineering/4-Lab-ML_using_Sagemaker.docx) 
 
 ### Here's what you will be implementing:
-![Lab 4](/event_engine/assets/images/04-arch.png)
+![Lab 4](/ee_helper/assets/images/04-arch.png)
 
 
 ### Checkpoint:
@@ -142,7 +142,7 @@ In this lab, we show you how to query petabytes of data with Amazon Redshift and
 ## Before You Begin
 
 This lab requires a new Redshift cluster in **US-WEST-2 (Oregon)**, use the following link to <br>
-[![Launch](/event_engine/assets/images/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/new?stackName=ImmersionRedshift&templateURL=https://immersionday-lab.s3.amazonaws.com/data-engineering/Create_Redshift_CFN.yaml)
+[![Launch](/ee_helper/assets/images/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/new?stackName=ImmersionRedshift&templateURL=https://immersionday-lab.s3.amazonaws.com/data-engineering/Create_Redshift_CFN.yaml)
 
 And gather the following information from the stack output above:
 * [Your-Redshift_Hostname]
@@ -150,7 +150,7 @@ And gather the following information from the stack output above:
 * [Your-Redshift_Username]
 * [Your-Redshift_Password]
 * [Your-Redshift_Role_ARN]
-![](/event_engine/assets/images/cf_output_rs.png)
+![](/ee_helper/assets/images/cf_output_rs.png)
 
 ## What Happened in 2016
 In the first part of this lab, we will perform the following activities:
@@ -160,13 +160,13 @@ In the first part of this lab, we will perform the following activities:
 ````
 https://s3.console.aws.amazon.com/s3/buckets/us-west-2.serverless-analytics/NYC-Pub/green/?region=us-west-2&tab=overview&prefixSearch=green_tripdata_2016
 ````
-![](/event_engine/assets/images/green_2016.png)
+![](/ee_helper/assets/images/green_2016.png)
 
 * Here's Sample data from one file which can be previewed directly in the S3 console:
 ````
 https://s3.console.aws.amazon.com/s3/object/us-west-2.serverless-analytics/NYC-Pub/green/green_tripdata_2013-08.csv?region=us-west-2&tab=select
 ````
-![](/event_engine/assets/images/green_preview.png)
+![](/ee_helper/assets/images/green_preview.png)
 	
 	
 ### Build your DDL 
@@ -273,15 +273,15 @@ In the next part of this lab, we will perform the following activities:
 ````
 https://s3.console.aws.amazon.com/s3/buckets/serverless-analytics/canonical/NY-Pub/?region=us-west-2&tab=overview
 ````
-![](/event_engine/assets/images/canonical_year.png)
+![](/ee_helper/assets/images/canonical_year.png)
 ````
 https://s3.console.aws.amazon.com/s3/buckets/serverless-analytics/canonical/NY-Pub/year%253D2016/month%253D1/?region=us-east-1&tab=overview
 ````
-![](/event_engine/assets/images/canonical_month.png)
+![](/ee_helper/assets/images/canonical_month.png)
 ````
 https://s3.console.aws.amazon.com/s3/buckets/serverless-analytics/canonical/NY-Pub/year%253D2016/month%253D1/type%253Dgreen/?region=us-east-1&tab=overview
 ````
-![](/event_engine/assets/images/canonical_type.png)
+![](/ee_helper/assets/images/canonical_type.png)
 
 
 ### Create external schema (and DB) for Redshift Spectrum
@@ -290,25 +290,25 @@ Because external tables are stored in a shared Glue Catalog for use within the A
 * Use the AWS Glue Crawler to create your external table adb305.ny_pub stored in parquet format under location s3://us-west-2.serverless-analytics/canonical/NY-Pub/.
 
 	1. Navigate to the **Glue Crawler Page**. https://console.aws.amazon.com/glue/home?#catalog:tab=crawlers
-	![](/event_engine/assets/images/crawler_0.png)
+	![](/ee_helper/assets/images/crawler_0.png)
 	1. Click on *Add Crawler*, and enter the crawler name *NYTaxiCrawler* and click *Next*.
-	![](/event_engine/assets/images/crawler_1.png)
+	![](/ee_helper/assets/images/crawler_1.png)
 	1. Select *Data stores* as the source type and click *Next*.
-	![](/event_engine/assets/images/crawler_2.png)
+	![](/ee_helper/assets/images/crawler_2.png)
 	1. Choose *S3* as the data store and the include path of *s3://us-west-2.serverless-analytics/canonical/NY-Pub*
-	![](/event_engine/assets/images/crawler_3.png)
+	![](/ee_helper/assets/images/crawler_3.png)
 	1. *Create an IAM Role* and enter the name AWSGlueServiceRole-*RedshiftImmersion*.  
-	![](/event_engine/assets/images/crawler_4.png)
+	![](/ee_helper/assets/images/crawler_4.png)
 	1. Select *Run on demand* for the frequency.
-	![](/event_engine/assets/images/crawler_5.png)
+	![](/ee_helper/assets/images/crawler_5.png)
 	1. Click on *Add database* and enter the Database of *spectrumdb*
-	![](/event_engine/assets/images/crawler_6.png)
+	![](/ee_helper/assets/images/crawler_6.png)
 	1. Select all remaining defaults. Once the Crawler has been created, click on *Run Crawler*.
-	![](/event_engine/assets/images/crawler_7.png)
+	![](/ee_helper/assets/images/crawler_7.png)
 	1. Once the Crawler has completed its run, you will see a new table in the Glue Catalog. https://console.aws.amazon.com/glue/home?#catalog:tab=tables
-	![](/event_engine/assets/images/crawler_8.png)
+	![](/ee_helper/assets/images/crawler_8.png)
 	1. Click on the *ny_pub* table, notice the recordCount of 2.87 billion. 
-	![](/event_engine/assets/images/crawler_9.png)
+	![](/ee_helper/assets/images/crawler_9.png)
 
 
 * Now that the table has been cataloged, switch back to your Redshift query editor and create an external schema **adb305** pointing to your Glue Catalog Database **spectrumdb**
