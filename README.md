@@ -8,7 +8,7 @@ Welcome to the lab Instruction!
 
 * AWS account - if you don't have one, please ask your instructor for the login detail.
 * Source RDS (Postgres) details - Your instructor should provide the database information. 
-								  Otherwise, follow the instruction in [PreLab-instructor](/PreLab/0.0-PreLab-DMS_instructor_Setup.docx) and set it up yourself.
+								  Otherwise, follow the instruction in [PreLab-instructor](/PreLab/0.0-PreLab-DMS_instructor_Setup.pdf) and set it up yourself.
 
 
 ### What you'll do:
@@ -70,7 +70,7 @@ At this point, the data lake workshop environment has been setup, looks like thi
 
 ## Lab 1 - Hydrating the data lake via DMS
 
-Download the [lab1 instruction file](https://immersionday-lab.s3.amazonaws.com/data-engineering/1-Lab-DMS.docx)
+Download the [lab1 instruction file](/2-Lab-DMS.pdf)
 
 ### Here's what you're going to work on in lab 1:
 
@@ -86,7 +86,7 @@ At this point, your DMS task should be finished with 'load Complete' status, and
 
 ## Lab 2 - Transforming data with Glue
 
-Download the [lab2 instruction file](https://immersionday-lab.s3.amazonaws.com/data-engineering/2-Lab-ETL_With_Glue.docx) 
+Download the [lab2 instruction file](/3-Lab-ETL_With_Glue.pdf) 
 
 ### Here's what you're going to work on in lab 2:
 
@@ -103,7 +103,7 @@ Nice work!  You've successfully converted CSV raw data to Parquet, and added par
 
 ## Lab 3 - Consuming data with Athena and Quicksight
 
-Download the [lab3 instruction file](https://immersionday-lab.s3.amazonaws.com/data-engineering/3-Lab-Athena_Quicksight.docx) 
+Download the [lab3 instruction file](/4-Lab-Athena_Quicksight.pdf) 
 
 ### Here's what you're going to work on in lab 3:
 
@@ -117,7 +117,7 @@ Sweet! Now you have queried the Data Lake and visualized it in QuickSight. Next,
 
 ## Lab 4 - Machine learning in the data lake
 
-Download the [lab4 instruction file](https://immersionday-lab.s3.amazonaws.com/data-engineering/4-Lab-ML_using_Sagemaker.docx) 
+Download the [lab4 instruction file](/4-Lab-ML_using_Sagemaker.pdf) 
 
 ### Here's what you will be implementing:
 ![Lab 4](/ee_helper/assets/images/04-arch.png)
