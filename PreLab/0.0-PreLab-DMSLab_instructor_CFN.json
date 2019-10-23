@@ -11,7 +11,7 @@
         "dmsinstructorvpc": {
             "Type": "AWS::EC2::VPC",
             "Properties": {
-                "CidrBlock": "10.0.0.0/24",
+                "CidrBlock": "10.0.0.0/16",
                 "InstanceTenancy": "default",
                 "EnableDnsSupport": "true",
                 "EnableDnsHostnames": "true",
@@ -26,7 +26,7 @@
         "RDSSubNet": {
             "Type": "AWS::EC2::Subnet",
             "Properties": {
-                "CidrBlock": "10.0.0.0/28",
+                "CidrBlock": "10.0.1.0/24",
                 "AvailabilityZone": "us-east-1d",
                 "VpcId": {
                     "Ref": "dmsinstructorvpc"
@@ -42,7 +42,7 @@
         "EC2SubNet": {
             "Type": "AWS::EC2::Subnet",
             "Properties": {
-                "CidrBlock": "10.0.0.32/28",
+                "CidrBlock": "10.0.0.0/24",
                 "AvailabilityZone": "us-east-1c",
                 "VpcId": {
                     "Ref": "dmsinstructorvpc"
@@ -58,7 +58,7 @@
         "RDSSubNet2": {
             "Type": "AWS::EC2::Subnet",
             "Properties": {
-                "CidrBlock": "10.0.0.16/28",
+                "CidrBlock": "10.0.2.0/24",
                 "AvailabilityZone": "us-east-1b",
                 "VpcId": {
                 "Ref": "dmsinstructorvpc"
@@ -119,8 +119,13 @@
                     "yum install -y postgresql\n",
                     "yum install -y git\n",
                     "yum update -y\n",
-		    "cd /home/ec2-user\n",
-                    "git clone https://github.com/aws-samples/aws-database-migration-samples.git\n"
+		            "cd /home/ec2-user\n",
+                    "git clone https://github.com/aws-samples/aws-database-migration-samples.git\n",
+                    "cd aws-database-migration-samples/PostgreSQL/sampledb/v1/\n",
+                    "export PGPASSWORD=master123\n",
+                    "nohup psql --host=",
+                    { "Fn::GetAtt" : [ "rdsdmslabdb", "Endpoint.Address" ] },
+                    " --port=5432 --dbname=sportstickets --username=master -f install-postgresql.sql >& ~/install.out &\n"
                     ]]}},
                 "Monitoring": "false",
                 "Tags": [
@@ -376,6 +381,14 @@
             }
         }
     },
+    "Outputs":{
+        "DMSInstanceEndpoint":{
+            "Description": "DMS Instance Endpoint",
+            "Value": {
+                 "Fn::GetAtt" : [ "rdsdmslabdb", "Endpoint.Address" ]
+            }
+        }
+    },
     "Description": "DMS Lab Instructor account",
     "Metadata": {
         "AWS::CloudFormation::Designer": {
@@ -394,5 +407,3 @@
         }
     }
 }
-
-
