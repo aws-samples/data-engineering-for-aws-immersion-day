@@ -12,9 +12,9 @@ Instructor Led :
 								  Otherwise, follow the instruction in [PreLab-instructor](/PreLab/0.0-PreLab-DMS_instructor_Setup.pdf) and set it up yourself.
 								  
 Self-Paced :
-If you want to run pre-requisite step by yourself
+If you want to run pre-requisite steps by yourself
 * AWS account - if you don't have one, Sign-up for [free AWS account](https://aws.amazon.com/free/?all-free-tier.sort-by=item.additionalFields.SortRank&all-free-tier.sort-order=asc) . All sevices in this lab are not covered under free tier, so it may incur some minor cost.
-* EC2 Keypair - Follow user gudie to [Create EC2 Key-pair] (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html). You need key-pair to deploy cloud formation template in next step. optionally you can login into EC2 with key-pair and interact with RDS database directly using command line.
+* EC2 Key pair - Follow user guide to create [EC2 key pair](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html) . You need key pair to deploy cloud formation template in next step. optionally you can login into EC2 with key-pair and interact with RDS database directly using command line.
 * To create source RDS database for dataset ingestion - Open the CloudFormation launch template link in a new tab. It will load a CloudFormation Dashboard and start the creation process for your lab environment, which deploys:
  <pre>
     - A source RDS database environment along with Required networking and IAM role setup.
