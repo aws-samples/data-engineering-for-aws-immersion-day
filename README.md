@@ -775,6 +775,7 @@ ALTER TABLE adb305.ny_pub DROP PARTITION(year=2016, month=12, type='green');
 
 ## Workshop Cleanup
 
-This is really important because if you leave stuff running in your account, it will continue to generate charges.  Certain things were created by CloudFormation and certain things were created manually throughout the workshop.  Follow the steps below to make sure you clean up properly.
+This is really important because if you leave stuff running in your account, it will continue to generate charges.  Make sure you clean them up by deleting the CloudFormation stack launched at the beginning of the workshop.
+
 
 [*^ back to the top*](#Requirements)
