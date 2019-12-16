@@ -91,7 +91,7 @@ Download the [lab1 instruction file](/2-Lab-DMS.pdf)
 
 ### Here's what you're going to work on in lab 1:
 
-![Lab 1 Architecture](assets/images/01-arch.png)
+![Lab 1 Architecture](/ee_helper/assets/images/01-arch.png)
 
 
 ### Checkpoint:
