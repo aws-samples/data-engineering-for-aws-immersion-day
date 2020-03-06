@@ -107,26 +107,38 @@
         },
         "instancei0f63b887480639040": {
             "Type": "AWS::EC2::Instance",
+            "DependsOn": "rdsdmslabdb",
             "Properties": {
                 "DisableApiTermination": "false",
                 "InstanceInitiatedShutdownBehavior": "stop",
                 "EbsOptimized": "true",
                 "ImageId": "ami-04681a1dbd79675a5",
                 "InstanceType": "t3.2xlarge",
-                "KeyName": {"Ref" : "KeyName" },
-                "UserData" : {"Fn::Base64" : {"Fn::Join" : ["", [
-                    "#!/bin/bash -xe\n",
-                    "yum install -y postgresql\n",
-                    "yum install -y git\n",
-                    "yum update -y\n",
-		            "cd /home/ec2-user\n",
-                    "git clone https://github.com/aws-samples/aws-database-migration-samples.git\n",
-                    "cd aws-database-migration-samples/PostgreSQL/sampledb/v1/\n",
-                    "export PGPASSWORD=master123\n",
-                    "nohup psql --host=",
-                    { "Fn::GetAtt" : [ "rdsdmslabdb", "Endpoint.Address" ] },
-                    " --port=5432 --dbname=sportstickets --username=master -f install-postgresql.sql >& ~/install.out &\n"
-                    ]]}},
+                "KeyName": {
+                    "Ref": "KeyName"
+                },
+                "UserData": {
+                    "Fn::Base64": {
+                        "Fn::Join": [
+                            "",
+                            [
+                                "#!/bin/bash -xe\n",
+                                "yum install -y postgresql\n",
+                                "yum install -y git\n",
+                                "yum update -y\n",
+                                "cd /home/ec2-user\n",
+                                "git clone https://github.com/aws-samples/aws-database-migration-samples.git\n",
+                                "cd aws-database-migration-samples/PostgreSQL/sampledb/v1/\n",
+                                "export PGPASSWORD=master123\n",
+                                "export ENDPOINT=",
+                                {"Fn::GetAtt":["rdsdmslabdb","Endpoint.Address"]},
+                                "\n",
+                                "nohup psql --host=${ENDPOINT} --port=5432 --dbname=sportstickets --username=master -f install-postgresql.sql >& ~/install.out &\n",
+                                "\n"
+                            ]
+                        ]
+                    }
+                },
                 "Monitoring": "false",
                 "Tags": [
                     {
@@ -181,6 +193,9 @@
                 "DBSubnetGroupName": {
                     "Ref": "dbsubnetdefaultdmsinstructorvpc"
                 },
+                "DBParameterGroupName": {
+                    "Ref": "dbpgdataengdmsgroup"
+                },
                 "VPCSecurityGroups": [
                     {
                         "Ref": "sgrdslaunchwizard2"
@@ -211,10 +226,23 @@
                 ]
             }
         },
+        "dbpgdataengdmsgroup": {
+            "Type": "AWS::RDS::DBParameterGroup",
+            "Properties": {
+              "Description": "Parameter for Ticket Database",
+              "Family": "postgres10",
+              "Parameters": {
+                "rds.logical_replication" : "1",
+                "wal_sender_timeout" : "0",
+                "max_wal_senders" : "20"
+
+              }
+            }
+        },
         "sgDMSLabSG": {
             "Type": "AWS::EC2::SecurityGroup",
             "Properties": {
-                "GroupDescription": "launch-wizard-6 created 2018-08-29T15:10:01.302-04:00",
+                "GroupDescription": "EC2 Security Group",
                 "VpcId": {
                     "Ref": "dmsinstructorvpc"
                 }
@@ -223,7 +251,7 @@
         "sgrdslaunchwizard2": {
             "Type": "AWS::EC2::SecurityGroup",
             "Properties": {
-                "GroupDescription": "Created from the RDS Management Console: 2018/08/29 18:14:15",
+                "GroupDescription": "RDS Security Group",
                 "VpcId": {
                     "Ref": "dmsinstructorvpc"
                 },
@@ -345,18 +373,6 @@
                 "IpProtocol": "tcp",
                 "FromPort": "5432",
                 "ToPort": "5432",
-                "CidrIp": "72.21.196.67/32"
-            }
-        },
-        "ingress4": {
-            "Type": "AWS::EC2::SecurityGroupIngress",
-            "Properties": {
-                "GroupId": {
-                    "Ref": "sgrdslaunchwizard2"
-                },
-                "IpProtocol": "tcp",
-                "FromPort": "5432",
-                "ToPort": "5432",
                 "CidrIp": "0.0.0.0/0"
             }
         },
@@ -379,15 +395,79 @@
                 "IpProtocol": "-1",
                 "CidrIp": "0.0.0.0/0"
             }
-        }
+        },
+        "GenerateCDCData" : {
+            "DependsOn": ["rdsdmslabdb", "LambdaExecutionRole"],
+            "Type" : "AWS::Lambda::Function",
+            "Properties" : {
+              "Code" :  { 
+                "S3Bucket": "luis-guides",
+                "S3Key": "dms-lab/function.zip"
+              },
+              "Description" : "Function to generate CDC data",
+              "FunctionName" : "GenerateCDCData",
+              "Handler" : "index.handler",
+              "MemorySize" : 128,
+              "Runtime" : "nodejs12.x",
+              "Timeout" : 60,
+              "Environment":{
+                "Variables": {"HOST":{"Fn::GetAtt":["rdsdmslabdb","Endpoint.Address"]}}
+              },
+              "Role" :  { "Fn::GetAtt" : [ "LambdaExecutionRole", "Arn" ] } ,
+              "VpcConfig" : 
+                        {
+                            "SecurityGroupIds" : [{"Fn::GetAtt" : [ "sgDMSLabSG","GroupId" ]}],
+                            "SubnetIds" : [{"Ref" : "EC2SubNet"}]
+                        }
+            }
+        },
+        "LambdaExecutionRole" : {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+              "AssumeRolePolicyDocument": {
+                "Version" : "2012-10-17",
+                "Statement": [ {
+                  "Effect": "Allow",
+                  "Principal": {
+                    "Service": [ "lambda.amazonaws.com" ]
+                  },
+                    "Action": [ "sts:AssumeRole" ]
+                } ]
+              },
+              "Policies": [ {
+                "PolicyName": "DMSlabRDSAccess",
+                  "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [{
+                      "Sid" : "RDSAccess",
+                      "Effect": "Allow",
+                      "Action": [
+                        "rds:*",
+                        "logs:CreateLogGroup",
+                        "logs:CreateLogStream",
+                        "logs:PutLogEvents",
+                        "ec2:CreateNetworkInterface",
+                        "ec2:DescribeNetworkInterfaces",
+                        "ec2:DeleteNetworkInterface"
+                      ],
+                      "Resource": "*"
+                    }]
+                  }
+              }]
+            }
+          }
     },
-    "Outputs":{
+     "Outputs":{
         "DMSInstanceEndpoint":{
             "Description": "DMS Instance Endpoint",
             "Value": {
                  "Fn::GetAtt" : [ "rdsdmslabdb", "Endpoint.Address" ]
             }
-        }
+        },
+            "CDCFuntion" : {
+            "Description": "CDC Function",
+            "Value" : { "Fn::GetAtt" : [ "GenerateCDCData","Arn" ] }
+       }
     },
     "Description": "DMS Lab Instructor account",
     "Metadata": {

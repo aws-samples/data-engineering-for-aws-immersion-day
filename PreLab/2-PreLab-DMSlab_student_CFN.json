@@ -1,10 +1,10 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
   "Outputs": {
-    "DMSLabRoleS3": {
+     "DMSLabRoleS3": {
       "Description": "The DMS serivce role",
-			"Value": { "Fn::GetAtt" : [ "DMSLabRoleS3", "Arn" ] }
-		},
+      "Value": { "Fn::GetAtt" : [ "DMSLabRoleS3", "Arn" ] }
+    },
 		"GlueLabRole": {
 			"Description": "The Glue service role",
 			"Value": {
@@ -16,6 +16,30 @@
       "Value" : { 
               "Ref" : "DMSLabS3Bucket"
           }
+      },
+        "S3BucketWorkgroupA" :{
+        "Description": "S3 Bucket for storing workgroup A results",
+        "Value": {"Ref": "S3BucketWorkgroupA"}
+      },
+      "S3BucketWorkgroupB" :{
+        "Description": "S3 bucket for storing workgroup B results",
+        "Value": {"Ref": "S3BucketWorkgroupB"}
+      },
+      "BusinessAnalystUser" :{
+        "Description": "business_analyst_user for Workgroup A",
+        "Value": {"Ref": "BusinessAnalystUser"}
+      },
+      "WorkgroupManagerUser": {
+        "Description": "workgroup_manager_user for access to Workgroup A and Workgroup B",
+        "Value": {"Ref": "WorkgroupManagerUser"}
+      },
+      "BusinessAnalystUserPolicy": {
+        "Description": "User policy for Business Analyst User",
+        "Value": "BusinessAnalystUserPolicy"
+      },
+      "WorkgroupManagerUserPolicy" :{
+        "Description": "User policy for Workgroup manager user",
+        "Value": "WorkgroupManagerUserPolicy"
       }
 	},
   "Resources": {
@@ -382,6 +406,170 @@
           "arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole"
         ]
       }
-    }
-  }
+    },
+    "S3BucketWorkgroupA" : {
+        "Type" : "AWS::S3::Bucket"
+          },
+      "S3BucketWorkgroupB" : {
+        "Type" : "AWS::S3::Bucket"
+          },
+      "BusinessAnalystUserPolicy": {
+          "Type": "AWS::IAM::ManagedPolicy",
+          "Properties": {
+              "Description": "Policy for providing required access to the business analyst user",
+              "Path": "/",
+              "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Sid": "VisualEditor0",
+                            "Effect": "Allow",
+                            "Action": "athena:ListWorkGroups",
+                            "Resource": "*"
+                        },
+                        {
+                            "Sid": "VisualEditor1",
+                            "Effect": "Allow",
+                            "Action": [
+                                "s3:ListBucketMultipartUploads",
+                                "athena:StartQueryExecution",
+                                "athena:GetQueryResultsStream",
+                                "athena:GetQueryResults",
+                                "s3:CreateBucket",
+                                "s3:ListBucket",
+                                "athena:DeleteNamedQuery",
+                                "athena:GetNamedQuery",
+                                "athena:ListTagsForResource",
+                                "athena:ListQueryExecutions",
+                                "s3:ListMultipartUploadParts",
+                                "athena:ListNamedQueries",
+                                "s3:PutObject",
+                                "s3:GetObject",
+                                "s3:GetObjectAcl",
+                                "athena:GetWorkGroup",
+                                "athena:CreateNamedQuery",
+                                "s3:AbortMultipartUpload",
+                                "athena:StopQueryExecution",
+                                "athena:GetQueryExecution",
+                                "athena:BatchGetNamedQuery",
+                                "s3:GetBucketLocation",
+                                "athena:BatchGetQueryExecution"
+                            ],
+                            "Resource": [
+                                { "Fn::Join" : [ "", [{ "Fn::Join" : [ "", [ "arn:aws:s3:::", { "Ref" : "S3BucketWorkgroupA" } ] ] },  "/*" ] ] },
+                                { "Fn::Join" : [ "", [ "arn:aws:s3:::", { "Ref" : "S3BucketWorkgroupA" } ] ] },
+                                { "Fn::Join" : [ "", [ "arn:aws:s3:::", {"Ref":"DMSLabS3Bucket"} ] ] },
+                                { "Fn::Join" : [ "", [{ "Fn::Join" : [ "", [ "arn:aws:s3:::", {"Ref":"DMSLabS3Bucket"} ] ] },  "/*" ] ] },
+                                { "Fn::Join" : [":", ["arn:aws:athena", {"Ref" : "AWS::Region"}, {"Ref" : "AWS::AccountId"}, "workgroup/workgroupA"]]}
+                              ]
+                        },
+                        {
+                            "Sid": "VisualEditor2",
+                            "Effect": "Allow",
+                            "Action": "athena:GetQueryExecutions",
+                            "Resource": { "Fn::Join" : [":", ["arn:aws:athena", {"Ref" : "AWS::Region"}, {"Ref" : "AWS::AccountId"}, "workgroup/workgroupA"]]}
+                        },
+                        {
+                            "Sid": "VisualEditor3",
+                            "Effect": "Allow",
+                            "Action": [
+                                "glue:Get*",
+                                "glue:GetTable"
+                            ],
+                            "Resource": [
+                                { "Fn::Join" : [":", ["arn:aws:glue", {"Ref" : "AWS::Region"}, {"Ref" : "AWS::AccountId"}, "catalog"]]},
+                                { "Fn::Join" : [":", ["arn:aws:glue", {"Ref" : "AWS::Region"}, {"Ref" : "AWS::AccountId"}, "catalog/awsdatacatalog"]]},
+                                { "Fn::Join" : [":", ["arn:aws:glue", {"Ref" : "AWS::Region"}, {"Ref" : "AWS::AccountId"}, "database/ticketdata"]]},
+                                { "Fn::Join" : [":", ["arn:aws:glue", {"Ref" : "AWS::Region"}, {"Ref" : "AWS::AccountId"}, "table/ticketdata/parquet_sporting_event"]]},
+                                { "Fn::Join" : [":", ["arn:aws:glue", {"Ref" : "AWS::Region"}, {"Ref" : "AWS::AccountId"}, "table/ticketdata/parquet_sport_team"]]},
+                                { "Fn::Join" : [":", ["arn:aws:glue", {"Ref" : "AWS::Region"}, {"Ref" : "AWS::AccountId"}, "table/ticketdata/parquet_sport_location"]]},
+                                { "Fn::Join" : [":", ["arn:aws:glue", {"Ref" : "AWS::Region"}, {"Ref" : "AWS::AccountId"}, "table/ticketdata/sporting_event_info"]]}
+                            ]
+                        }
+                    ]
+                }
+            }
+          },
+        "WorkgroupManagerUserPolicy":{
+            "Type": "AWS::IAM::ManagedPolicy",
+            "Properties": {
+                "Description": "Policy for providing only manager access to workgroup manager user for WorkgroupA and WorkgroupB",
+                "Path": "/",
+                "PolicyDocument": {
+                      "Version": "2012-10-17",
+                      "Statement": [
+                          {
+                              "Effect": "Allow",
+                              "Action": [
+                                  "athena:ListWorkGroups"
+                              ],
+                              "Resource": "*"
+                          },
+                          {
+                              "Effect": "Allow",
+                              "Action": [
+                                  "s3:ListBucketMultipartUploads",
+                                  "s3:CreateBucket",
+                                  "s3:ListBucket",
+                                  "s3:ListMultipartUploadParts",
+                                  "s3:PutObject",
+                                  "s3:GetObject",
+                                  "s3:GetObjectAcl",
+                                  "s3:GetBucketLocation"
+                              ],
+                              "Resource": [
+                                { "Fn::Join" : [ "", [ "arn:aws:s3:::", { "Ref" : "S3BucketWorkgroupA" } ] ] },
+                                { "Fn::Join" : [ "", [{ "Fn::Join" : [ "", [ "arn:aws:s3:::", { "Ref" : "S3BucketWorkgroupA" } ] ] },  "/*" ] ] },
+                                { "Fn::Join" : [ "", [ "arn:aws:s3:::", { "Ref" : "S3BucketWorkgroupB" } ] ] },
+                                { "Fn::Join" : [ "", [{ "Fn::Join" : [ "", [ "arn:aws:s3:::", { "Ref" : "S3BucketWorkgroupB" } ] ] },  "/*" ] ] },
+                                { "Fn::Join" : [ "", [ "arn:aws:s3:::", {"Ref":"DMSLabS3Bucket"} ] ] },
+                                { "Fn::Join" : [ "", [{ "Fn::Join" : [ "", [ "arn:aws:s3:::", {"Ref":"DMSLabS3Bucket"} ] ] },  "/*" ] ] },
+                                { "Fn::Join" : [":", ["arn:aws:athena", {"Ref" : "AWS::Region"}, {"Ref" : "AWS::AccountId"}, "workgroup/workgroupA"]]},
+                                { "Fn::Join" : [":", ["arn:aws:athena", {"Ref" : "AWS::Region"}, {"Ref" : "AWS::AccountId"}, "workgroup/workgroupB"]]}
+                              ]
+                          },
+                          {
+                              "Effect": "Allow",
+                              "Action": [
+                                  "athena:DeleteWorkGroup",
+                                  "athena:UpdateWorkGroup",
+                                  "athena:GetWorkGroup",
+                                  "athena:CreateWorkGroup",
+                                  "athena:GetExecutionEngine",
+                                  "athena:GetExecutionEngines",
+                                  "athena:GetNamespace",
+                                  "athena:GetCatalogs",
+                                  "athena:GetNamespaces",
+                                  "athena:GetTables",
+                                  "athena:GetTable"
+                              ],
+                              "Resource": [
+                                  { "Fn::Join" : [":", ["arn:aws:athena", {"Ref" : "AWS::Region"}, {"Ref" : "AWS::AccountId"}, "workgroup/workgroupA"]]},
+                                  { "Fn::Join" : [":", ["arn:aws:athena", {"Ref" : "AWS::Region"}, {"Ref" : "AWS::AccountId"}, "workgroup/workgroupB"]]}
+                              ]
+                          }
+                      ]
+                  }
+              }
+  },
+  
+  "BusinessAnalystUser":{
+     "Type" : "AWS::IAM::User",
+     "Properties": {
+       "ManagedPolicyArns": [{ "Ref": "BusinessAnalystUserPolicy" }],
+       "LoginProfile": {
+             "Password": "master123"
+           }
+     }
+  },
+  "WorkgroupManagerUser":{
+     "Type" : "AWS::IAM::User",
+     "Properties": {
+       "ManagedPolicyArns": [{ "Ref": "WorkgroupManagerUserPolicy" }],
+       "LoginProfile": {
+             "Password": "master123"
+           }
+     }
+     }
+}
 }
