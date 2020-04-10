@@ -1,12 +1,5 @@
 {
     "AWSTemplateFormatVersion": "2010-09-09",
-    "Parameters" : {
-        "KeyName": {
-          "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instance",
-          "Type": "AWS::EC2::KeyPair::KeyName",
-          "ConstraintDescription" : "must be the name of an existing EC2 KeyPair in us-east-1 only."
-        }
-    },
     "Resources": {
         "dmsinstructorvpc": {
             "Type": "AWS::EC2::VPC",
@@ -114,9 +107,6 @@
                 "EbsOptimized": "true",
                 "ImageId": "ami-04681a1dbd79675a5",
                 "InstanceType": "t3.2xlarge",
-                "KeyName": {
-                    "Ref": "KeyName"
-                },
                 "UserData": {
                     "Fn::Base64": {
                         "Fn::Join": [
@@ -177,7 +167,7 @@
                 "AllowMajorVersionUpgrade": "false",
                 "AutoMinorVersionUpgrade": "true",
                 "DBInstanceClass": "db.t2.xlarge",
-		"DBInstanceIdentifier": "dmslabinstance",
+		            "DBInstanceIdentifier": "dmslabinstance",
                 "Port": "5432",
                 "PubliclyAccessible": "true",
                 "StorageType": "gp2",
@@ -188,7 +178,7 @@
                 "PreferredMaintenanceWindow": "sun:05:20-sun:05:50",
                 "DBName": "sportstickets",
                 "Engine": "postgres",
-                "EngineVersion": "10.4",
+                "EngineVersion": "11.5",
                 "LicenseModel": "postgresql-license",
                 "DBSubnetGroupName": {
                     "Ref": "dbsubnetdefaultdmsinstructorvpc"
@@ -230,7 +220,7 @@
             "Type": "AWS::RDS::DBParameterGroup",
             "Properties": {
               "Description": "Parameter for Ticket Database",
-              "Family": "postgres10",
+              "Family": "postgres11",
               "Parameters": {
                 "rds.logical_replication" : "1",
                 "wal_sender_timeout" : "0",
@@ -373,7 +363,7 @@
                 "IpProtocol": "tcp",
                 "FromPort": "5432",
                 "ToPort": "5432",
-                "CidrIp": "0.0.0.0/0"
+                "CidrIp": "72.21.196.67/32"
             }
         },
         "egress1": {
@@ -400,7 +390,7 @@
             "DependsOn": ["rdsdmslabdb", "LambdaExecutionRole"],
             "Type" : "AWS::Lambda::Function",
             "Properties" : {
-              "Code" :  { 
+              "Code" :  {
                 "S3Bucket": "luis-guides",
                 "S3Key": "dms-lab/function.zip"
               },
@@ -414,7 +404,7 @@
                 "Variables": {"HOST":{"Fn::GetAtt":["rdsdmslabdb","Endpoint.Address"]}}
               },
               "Role" :  { "Fn::GetAtt" : [ "LambdaExecutionRole", "Arn" ] } ,
-              "VpcConfig" : 
+              "VpcConfig" :
                         {
                             "SecurityGroupIds" : [{"Fn::GetAtt" : [ "sgDMSLabSG","GroupId" ]}],
                             "SubnetIds" : [{"Ref" : "EC2SubNet"}]
