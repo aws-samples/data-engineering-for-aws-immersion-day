@@ -112,18 +112,41 @@
                         "Fn::Join": [
                             "",
                             [
+                                "Content-Type: multipart/mixed; boundary=\"//\"\n",
+                                "MIME-Version: 1.0\n",
+                                "\n",
+                                "--//\n",
+                                "Content-Type: text/cloud-config; charset=\"us-ascii\"\n",
+                                "MIME-Version: 1.0\n",
+                                "Content-Transfer-Encoding: 7bit\n",
+                                "Content-Disposition: attachment; filename=\"cloud-config.txt\"\n",
+                                "\n",
+                                "#cloud-config\n",
+                                "cloud_final_modules:\n",
+                                "- [scripts-user, always]\n",
+                                "\n",
+                                "--//\n",
+                                "Content-Type: text/x-shellscript; charset=\"us-ascii\"\n",
+                                "MIME-Version: 1.0\n",
+                                "Content-Transfer-Encoding: 7bit\n",
+                                "Content-Disposition: attachment; filename=\"userdata.txt\"\n",
+                                "\n",
                                 "#!/bin/bash -xe\n",
                                 "yum install -y postgresql\n",
                                 "yum install -y git\n",
                                 "yum update -y\n",
                                 "cd /home/ec2-user\n",
+                                "DIR=\"aws-database-migration-samples\"\n",
+                                "if [ ! -d \"$DIR\" ]; then\n",
                                 "git clone https://github.com/aws-samples/aws-database-migration-samples.git\n",
+                                "fi\n",
                                 "cd aws-database-migration-samples/PostgreSQL/sampledb/v1/\n",
                                 "export PGPASSWORD=master123\n",
                                 "export ENDPOINT=",
                                 {"Fn::GetAtt":["rdsdmslabdb","Endpoint.Address"]},
                                 "\n",
-                                "nohup psql --host=${ENDPOINT} --port=5432 --dbname=sportstickets --username=master -f install-postgresql.sql >& ~/install.out &\n",
+                                "nohup psql --host=${ENDPOINT} --port=5432 --dbname=sportstickets --username=master -f install-postgresql.sql\n",
+                                "--//\n",
                                 "\n"
                             ]
                         ]
@@ -251,12 +274,6 @@
                         "Value": "DMSLabRDS-SG"
                     }
                 ]
-            }
-        },
-        "dbsgdefault": {
-            "Type": "AWS::RDS::DBSecurityGroup",
-            "Properties": {
-                "GroupDescription": "default"
             }
         },
         "gw1": {
@@ -391,15 +408,15 @@
             "Type" : "AWS::Lambda::Function",
             "Properties" : {
               "Code" :  {
-                "S3Bucket": "luis-guides",
-                "S3Key": "dms-lab/function.zip"
+                "S3Bucket": "aws-dataengineering-day.workshop.aws",
+                "S3Key": "dmslambda.zip"
               },
               "Description" : "Function to generate CDC data",
               "FunctionName" : "GenerateCDCData",
               "Handler" : "index.handler",
               "MemorySize" : 128,
               "Runtime" : "nodejs12.x",
-              "Timeout" : 60,
+              "Timeout" : 300,
               "Environment":{
                 "Variables": {"HOST":{"Fn::GetAtt":["rdsdmslabdb","Endpoint.Address"]}}
               },
