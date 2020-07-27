@@ -407,6 +407,32 @@
         ]
       }
     },
+    "DMSCloudWatchLogRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName" : "dms-cloudwatch-logs-role",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "dms.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "Path": "/",
+        "ManagedPolicyArns": [
+          "arn:aws:iam::aws:policy/service-role/AmazonDMSCloudWatchLogsRole"
+        ]
+      }
+    },
     "S3BucketWorkgroupA" : {
         "Type" : "AWS::S3::Bucket"
           },

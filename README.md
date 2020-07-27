@@ -25,7 +25,7 @@ Click the **Deploy to AWS** icons below to stand up the RDS dataset infrastructu
 
 | Region | Launch Template |
 | ------------ | ------------- | 
-**N.Virginia** (us-east-1) | [![Launch CloudFormation](/ee_helper/assets/images/00-deploy-to-aws.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=dmslab-instructor&templateURL=https://immersionday-lab.s3.amazonaws.com/data-engineering/PreLab-Instructor/DMSLab_instructor_CFN.json) 
+**N.Virginia** (us-east-1) | [![Launch CloudFormation](/ee_helper/assets/images/00-deploy-to-aws.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=dmslab-instructor&templateURL=https://s3.us-east-1.amazonaws.com/aws-dataengineering-day.workshop.aws/DMSLab_instructor_CFN.json) 
 
 ### What you'll do:
 
@@ -59,7 +59,7 @@ Click the **Deploy to AWS** icons below to stand up the core workshop infrastruc
 
 | Region | Launch Template |
 | ------------ | ------------- | 
-**N.Virginia** (us-east-1) | [![Launch CloudFormation](/ee_helper/assets/images/00-deploy-to-aws.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=dmslab-student&templateURL=https://immersionday-lab.s3.amazonaws.com/data-engineering/DMSlab_student_CFN.json)  
+**N.Virginia** (us-east-1) | [![Launch CloudFormation](/ee_helper/assets/images/00-deploy-to-aws.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=dmslab-student&templateURL=https://s3.us-east-1.amazonaws.com/aws-dataengineering-day.workshop.aws/DMSlab_student_CFN.json)  
 
 
 2. The template will automatically take you to the CloudFormation Console and start the stack creation process in **N.Virginia** region.
