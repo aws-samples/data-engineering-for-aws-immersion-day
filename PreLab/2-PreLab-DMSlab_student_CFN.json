@@ -33,13 +33,9 @@
         "Description": "workgroup_manager_user for access to Workgroup A and Workgroup B",
         "Value": {"Ref": "WorkgroupManagerUser"}
       },
-      "BusinessAnalystUserPolicy": {
-        "Description": "User policy for Business Analyst User",
-        "Value": "BusinessAnalystUserPolicy"
-      },
-      "WorkgroupManagerUserPolicy" :{
-        "Description": "User policy for Workgroup manager user",
-        "Value": "WorkgroupManagerUserPolicy"
+      "LakeFormationRole": {
+        "Description": "Lake Formation IAM role",
+        "Value": {"Ref": "LakeFormationWorkflowRole"}
       }
 	},
   "Resources": {
@@ -48,8 +44,8 @@
       "Properties": {
         "CidrBlock": "10.0.0.0/24",
         "InstanceTenancy": "default",
-        "EnableDnsSupport": "true",
-        "EnableDnsHostnames": "false",
+        "EnableDnsSupport": true,
+        "EnableDnsHostnames": false,
         "Tags": [
           {
             "Key": "Name",
@@ -69,31 +65,16 @@
         "Tags": [
           {
             "Key": "Name",
-            "Value": "dmslstudv1"
+            "Value": "private_subnet"
           }
-        ]
+        ],
+        "MapPublicIpOnLaunch" :false
       }
     },
     "dmslabstudentsubnet2": {
       "Type": "AWS::EC2::Subnet",
       "Properties": {
         "CidrBlock": "10.0.0.128/26",
-        "AvailabilityZone": "us-east-1c",
-        "VpcId": {
-          "Ref": "dmslabstudentvpc"
-        },
-        "Tags": [
-          {
-            "Key": "Name",
-            "Value": "dmslstudv1"
-          }
-        ]
-      }
-    },
-    "dmslabstudentsubnet3": {
-      "Type": "AWS::EC2::Subnet",
-      "Properties": {
-        "CidrBlock": "10.0.0.64/26",
         "AvailabilityZone": "us-east-1b",
         "VpcId": {
           "Ref": "dmslabstudentvpc"
@@ -101,9 +82,27 @@
         "Tags": [
           {
             "Key": "Name",
-            "Value": "dmslstudv1"
+            "Value": "private_subnet"
           }
-        ]
+        ],
+        "MapPublicIpOnLaunch" :false
+      }
+    },
+    "dmslabstudentsubnet3": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "CidrBlock": "10.0.0.64/26",
+        "AvailabilityZone": "us-east-1c",
+        "VpcId": {
+          "Ref": "dmslabstudentvpc"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "public_subnet"
+          }
+        ],
+         "MapPublicIpOnLaunch" :true
       }
     },
     "dmslabstudentigw": {
@@ -115,6 +114,27 @@
             "Value": "DMSLab-IGW"
           }
         ]
+      }
+    },
+    "NatPublicIP" : {
+     "DependsOn" : "dmslabstudentvpc",
+     "Type" : "AWS::EC2::EIP",
+     "Properties" : {
+        "Domain" : "vpc"
+     }
+    },
+    "NatGateway": {
+      "DependsOn" : "NatPublicIP",
+      "Type" : "AWS::EC2::NatGateway",
+      "Properties" : {
+          "AllocationId" : { "Fn::GetAtt" : ["NatPublicIP", "AllocationId"]},
+          "SubnetId" :  { "Ref" : "dmslabstudentsubnet3"},
+          "Tags" : [ 
+            {
+              "Key" : "Name", 
+              "Value" : "NatGateway" 
+            } 
+          ]
       }
     },
     "dopt1b68e47c": {
@@ -134,12 +154,40 @@
         }
       }
     },
-    "dmslabstudentrtable": {
+    "dmslabstudentrtable1": {
       "Type": "AWS::EC2::RouteTable",
       "Properties": {
         "VpcId": {
           "Ref": "dmslabstudentvpc"
-        }
+        },
+         "Tags": [
+          {
+            "Key": "Network",
+            "Value": "Private"
+          },
+          {
+            "Key": "Nane",
+            "Value": "PrivateRouteTable"
+          }
+        ]
+      }
+    },
+    "dmslabstudentrtable2": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "dmslabstudentvpc"
+        },
+         "Tags": [
+          {
+            "Key": "Network",
+            "Value": "Public"
+          },
+          {
+            "Key": "Name",
+            "Value": "PublicRouteTable"
+          }
+        ]
       }
     },
     "sgdefault": {
@@ -155,10 +203,10 @@
       "Type": "AWS::EC2::NetworkAclEntry",
       "Properties": {
         "CidrBlock": "0.0.0.0/0",
-        "Egress": "true",
-        "Protocol": "-1",
+        "Egress": true,
+        "Protocol": -1,
         "RuleAction": "allow",
-        "RuleNumber": "100",
+        "RuleNumber": 100,
         "NetworkAclId": {
           "Ref": "dmslabstudentacl"
         }
@@ -168,9 +216,9 @@
       "Type": "AWS::EC2::NetworkAclEntry",
       "Properties": {
         "CidrBlock": "0.0.0.0/0",
-        "Protocol": "-1",
+        "Protocol": -1,
         "RuleAction": "allow",
-        "RuleNumber": "100",
+        "RuleNumber": 100,
         "NetworkAclId": {
           "Ref": "dmslabstudentacl"
         }
@@ -224,7 +272,7 @@
       "Type": "AWS::EC2::SubnetRouteTableAssociation",
       "Properties": {
         "RouteTableId": {
-          "Ref": "dmslabstudentrtable"
+          "Ref": "dmslabstudentrtable1"
         },
         "SubnetId": {
           "Ref": "dmslabstudentsubnet1"
@@ -235,10 +283,10 @@
       "Type": "AWS::EC2::SubnetRouteTableAssociation",
       "Properties": {
         "RouteTableId": {
-          "Ref": "dmslabstudentrtable"
+          "Ref": "dmslabstudentrtable1"
         },
         "SubnetId": {
-          "Ref": "dmslabstudentsubnet3"
+          "Ref": "dmslabstudentsubnet2"
         }
       }
     },
@@ -246,10 +294,10 @@
       "Type": "AWS::EC2::SubnetRouteTableAssociation",
       "Properties": {
         "RouteTableId": {
-          "Ref": "dmslabstudentrtable"
+          "Ref": "dmslabstudentrtable2"
         },
         "SubnetId": {
-          "Ref": "dmslabstudentsubnet2"
+          "Ref": "dmslabstudentsubnet3"
         }
       }
     },
@@ -258,13 +306,25 @@
       "Properties": {
         "DestinationCidrBlock": "0.0.0.0/0",
         "RouteTableId": {
-          "Ref": "dmslabstudentrtable"
+          "Ref": "dmslabstudentrtable1"
+        },
+        "NatGatewayId": {
+          "Ref": "NatGateway"
+        }
+      }
+    },
+    "route2": {
+      "DependsOn": "gw1",
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "RouteTableId": {
+          "Ref": "dmslabstudentrtable2"
         },
         "GatewayId": {
           "Ref": "dmslabstudentigw"
         }
-      },
-      "DependsOn": "gw1"
+      }
     },
     "dchpassoc1": {
       "Type": "AWS::EC2::VPCDHCPOptionsAssociation",
@@ -432,6 +492,66 @@
           "arn:aws:iam::aws:policy/service-role/AmazonDMSCloudWatchLogsRole"
         ]
       }
+    },
+    "LakeFormationWorkflowRole": {
+          "Type": "AWS::IAM::Role",
+          "Properties": {
+              "AssumeRolePolicyDocument": {
+                  "Version": "2012-10-17",
+                  "Statement": [
+                      {
+                          "Effect": "Allow",
+                          "Principal": {
+                              "Service": [
+                                  "glue.amazonaws.com"
+                              ]
+                          },
+                          "Action": [
+                              "sts:AssumeRole"
+                          ]
+                      }
+                  ]
+              },
+              "Policies": [
+              {
+                  "PolicyName": "DatalakeDataAccess",
+                  "PolicyDocument": {
+                      "Version": "2012-10-17",
+                      "Statement": [
+                          {
+                              "Sid": "Lakeformation",
+                              "Effect": "Allow",
+                              "Action": [
+                                  "lakeformation:GetDataAccess",
+                                  "lakeformation:GrantPermissions"
+                              ],
+                              "Resource": "*"
+                          }
+                      ]
+                  }
+              },
+              {
+                  "PolicyName": "DatalakePassRole",
+                  "PolicyDocument": {
+                      "Version": "2012-10-17",
+                      "Statement": [
+                          {
+                              "Sid": "PassRolePermissions",
+                              "Effect": "Allow",
+                              "Action": [
+                                  "iam:PassRole"
+                              ],
+                              "Resource": "*"
+                          }
+                      ]
+                  }
+              }],
+              "ManagedPolicyArns": [
+                  "arn:aws:iam::aws:policy/AmazonS3FullAccess",
+                  "arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole",
+                  "arn:aws:iam::aws:policy/AWSGlueConsoleFullAccess"
+              ]
+          }
     },
     "S3BucketWorkgroupA" : {
         "Type" : "AWS::S3::Bucket"
