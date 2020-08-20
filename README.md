@@ -152,9 +152,6 @@ Make sure you have completed
 
 Download the [lab5 instruction file](/5-Lab-LakeFormation.pdf) 
 
-### Here's what you will be implementing:
-![Lab 4](/ee_helper/assets/images/04-arch.png)
-
 
 ## Lab 6 - Modernize Data Warehouse with Amazon Redshift Spectrum
 
