@@ -9,19 +9,18 @@ Welcome to the lab Instruction!
 Instructor Led :
 * AWS account - if you don't have one, please ask your instructor for the login detail.
 * Source RDS (Postgres) details - Your instructor should provide the database information. 
-								  Otherwise, follow the instruction in [PreLab-instructor](/PreLab/0.0-PreLab-DMS_instructor_Setup.pdf) and set it up yourself.
 								  
-Self-Paced :
+Self-paced :
 If you want to run pre-requisite steps by yourself
 * AWS account - if you don't have one, Sign-up for [free AWS account](https://aws.amazon.com/free/?all-free-tier.sort-by=item.additionalFields.SortRank&all-free-tier.sort-order=asc) . All sevices in this lab are not covered under free tier, so it may incur some minor cost.
-* To create source RDS database for dataset ingestion - Open the CloudFormation launch template link in a new tab. It will load a CloudFormation Dashboard and start the creation process for your lab environment, which deploys:
+* Follow the instruction in [PreLab-instructor](/PreLab/0.0-PreLab-DMS_instructor_Setup.pdf) to set up a RDS source database yourself. It deploys:
  <pre>
-    - A source RDS database environment along with Required networking and IAM role setup.
-    - Hydrate the source database environment with event tickets sales data
+    - A source RDS database environment along with required networking and IAM roles.
+    - Populate the source database with event ticket sales data
  </pre>
 
    
-Click the **Deploy to AWS** icons below to stand up the RDS dataset infrastructure. 
+Click the **Deploy to AWS** icons below to stand up the RDS database infrastructure. 
 
 | Region | Launch Template |
 | ------------ | ------------- | 
@@ -38,7 +37,8 @@ __**Ensure your region is US East (N. Virginia)**__
 * **Lab 2:** [Transforming in the data lake with Glue](#lab-2---Transforming-data-with-Glue)
 * **Lab 3:** [Consuming the data lake with Athena & QuickSight](#lab-3---Consuming-data-with-Athena-and-Quicksight)
 * **Lab 4:** [Machine learning in the data lake](#lab-4---Machine-learning-in-the-data-lake)
-* **Lab 5:** [Modernize Data Warehouse with Amazon Redshift Spectrum](#Lab-5---Modernize-Data-Warehouse-with-Amazon-Redshift-Spectrum)
+* **Lab 5:** [AWS Lake Formation Lab](#lab-5---AWS-Lake-Formation-Lab)
+* **Lab 6:** [Modernize Data Warehouse with Amazon Redshift Spectrum](#Lab-6---Modernize-Data-Warehouse-with-Amazon-Redshift-Spectrum)
 * **Cleanup** [Put everything away nicely](#workshop-cleanup)
 
 
@@ -143,8 +143,17 @@ Download the [lab4 instruction file](/4-Lab-ML_using_Sagemaker.pdf)
 Congratulations, you've successfully built the Data Lake from end to end.  If you have time, try the optional steps in the 4 labs above. Otherwise, please remember to follow the steps below in the **Workshop Cleanup** to make sure all assets created during the workshop are removed so you do not see unexpected charges after today.
 
 [*^ back to the top*](#Requirements)
+## Lab 5 - AWS Lake Formation Lab
 
-### Lab 5 - Modernize Data Warehouse with Amazon Redshift Spectrum
+Make sure you have completed 
+* **Lab 1.** Hydrating the Data Lake with DMS
+* **Lab 2.** ETL with AWS Glue
+
+
+Download the [lab5 instruction file](/5-Lab-LakeFormation.pdf) 
+
+
+## Lab 6 - Modernize Data Warehouse with Amazon Redshift Spectrum
 
 In this lab, we show you how to query petabytes of data with Amazon Redshift and exabytes of data in your Amazon S3 data lake, without loading or moving objects. We will also demonstrate how you can leverage views which union data in direct attached storage as well as in your S3 Datalake to create a single source of truth.  Finally, we will demonstrate strategies for aging off old data into S3 and maintaining only the most recent data in Amazon Redshift direct attached storage.
 
