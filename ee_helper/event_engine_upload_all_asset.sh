@@ -5,7 +5,7 @@
 
 # DOUBLE-CHECK THE MODULE ID AND VERSION, BELOW:
 MODULE_ID=$1
-MODULE_VERSION=1
+MODULE_VERSION=$2
 
 ###### No need to edit below this line
 EE_BUCKET=ee-assets-prod-${AWS_DEFAULT_REGION}
@@ -20,11 +20,11 @@ echo ""
 ## To minimize risk that we overwrite assets in wrong version/module, we need
 ## a positive confirmation from the user that they have double-checked the values above.
   echo "----------------------------------------------------------------------------"
-if [ "$2" != "confirm" ]; then
+if [ "$3" != "confirm" ]; then
   echo 'Note - this is a dry-run! Double-check the module and version ID and,'
   echo 'if you are ready to upload, then add the "confirm" parameter, shown below:'
   echo ""
-  echo "./upload.sh <your module_id> confirm"
+  echo "./upload.sh <your module_id> <MODULE_VERSION> confirm"
   echo "----------------------------------------------------------------------------"
   exit
 fi
