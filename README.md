@@ -47,7 +47,7 @@ __**Ensure your region is US East (N. Virginia)**__
 
 ### AutoComplete DMS lab:
 
-Download the [lab instruction file](/2-Lab-DMS.pdf)
+Download the [lab instruction file](/2a-Lab-AutoComplete-DMS.pdf)
 
 This lab is designed to automate the Data Lake hydration with AWS Database Migration Service (AWS DMS), so we can fast forward to [Lab2-Transforming in the data lake with Glue](#lab-2---Transforming-data-with-Glue).
 
