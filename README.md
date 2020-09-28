@@ -49,9 +49,9 @@ __**Ensure your region is US East (N. Virginia)**__
 
 Download the [lab instruction file](/2-Lab-DMS.pdf)
 
-Labs in the Data Engineering workshop are to be completed in sequence. This lab is designed to automate the Data Lake hydration with AWS Database Migration Service (AWS DMS), so we can move forward to [Lab 2:Transforming in the data lake with Glue](#lab-2---Transforming-data-with-Glue).
+This lab is designed to automate the Data Lake hydration with AWS Database Migration Service (AWS DMS), so we can fast forward to [Lab2-Transforming in the data lake with Glue](#lab-2---Transforming-data-with-Glue).
 
-If you prefer to get hands-on with AWS DMS service, please skip this lab and proceed to [Workshop Setup](#workshop-setup) and [Lab 1:Hydrateing the data lake via DMS](#Lab-1---Hydrating-the-data-lake-via-DMS)
+If you prefer to get hands-on with AWS DMS service, please skip this lab and proceed to [Workshop Setup](#workshop-setup) and [Lab1-Hydrateing the data lake via DMS](#Lab-1---Hydrating-the-data-lake-via-DMS)
 
 [*^ back to the top*](#Requirements)
 
