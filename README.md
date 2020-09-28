@@ -11,7 +11,7 @@ Instructor Led :
 * Source RDS (Postgres) details - Your instructor should provide the database information. 
 								  
 Self-paced :
-If you want to run pre-requisite steps by yourself
+If you want to run pre-requisite steps by yourself:
 * AWS account - if you don't have one, Sign-up for [free AWS account](https://aws.amazon.com/free/?all-free-tier.sort-by=item.additionalFields.SortRank&all-free-tier.sort-order=asc) . All sevices in this lab are not covered under free tier, so it may incur some minor cost.
 * Follow the instruction in [PreLab-instructor](/PreLab/0.0-PreLab-DMS_instructor_Setup.pdf) to set up a RDS source database yourself. It deploys:
  <pre>
@@ -32,7 +32,8 @@ These labs are designed to be completed in sequence, and the full set of instruc
 
 __**Ensure your region is US East (N. Virginia)**__
 
-* **Workshop Setup:** [Create working environment on AWS](#lets-begin)
+* **AutoComplete DMS lab:** [Skip Workshop Setup & Lab 1](#AutoComplete-DMS-lab)
+* **Workshop Setup:** [Create working environment on AWS](#workshop-setup)
 * **Lab 1:** [Hydrateing the data lake via DMS](#Lab-1---Hydrating-the-data-lake-via-DMS)
 * **Lab 2:** [Transforming in the data lake with Glue](#lab-2---Transforming-data-with-Glue)
 * **Lab 3:** [Consuming the data lake with Athena & QuickSight](#lab-3---Consuming-data-with-Athena-and-Quicksight)
@@ -43,6 +44,16 @@ __**Ensure your region is US East (N. Virginia)**__
 
 
 ## Let's Begin!
+
+### AutoComplete DMS lab:
+
+Download the [lab instruction file](/2-Lab-DMS.pdf)
+
+Labs in the Data Engineering workshop are to be completed in sequence. This lab is designed to automate the Data Lake hydration with AWS Database Migration Service (AWS DMS), so we can move forward to [Lab 2:Transforming in the data lake with Glue](#lab-2---Transforming-data-with-Glue).
+
+If you prefer to get hands-on with AWS DMS service, please skip this lab and proceed to [Workshop Setup](#workshop-setup) and [Lab 1:Hydrateing the data lake via DMS](#Lab-1---Hydrating-the-data-lake-via-DMS)
+
+[*^ back to the top*](#Requirements)
 
 ### Workshop Setup:
 
