@@ -16,27 +16,27 @@
       "Value" : { 
               "Ref" : "DMSLabS3Bucket"
           }
-    },
-      "S3BucketWorkgroupA" :{
-      "Description": "S3 Bucket for storing workgroup A results",
-      "Value": {"Ref": "S3BucketWorkgroupA"}
-    },
-    "S3BucketWorkgroupB" :{
-      "Description": "S3 bucket for storing workgroup B results",
-      "Value": {"Ref": "S3BucketWorkgroupB"}
-    },
-    "BusinessAnalystUser" :{
-      "Description": "business_analyst_user for Workgroup A",
-      "Value": {"Ref": "BusinessAnalystUser"}
-    },
-    "WorkgroupManagerUser": {
-      "Description": "workgroup_manager_user for access to Workgroup A and Workgroup B",
-      "Value": {"Ref": "WorkgroupManagerUser"}
-    },
-    "LakeFormationRole": {
-      "Description": "Lake Formation IAM role",
-      "Value": {"Ref": "LakeFormationWorkflowRole"}
-    }
+      },
+        "S3BucketWorkgroupA" :{
+        "Description": "S3 Bucket for storing workgroup A results",
+        "Value": {"Ref": "S3BucketWorkgroupA"}
+      },
+      "S3BucketWorkgroupB" :{
+        "Description": "S3 bucket for storing workgroup B results",
+        "Value": {"Ref": "S3BucketWorkgroupB"}
+      },
+      "BusinessAnalystUser" :{
+        "Description": "business_analyst_user for Workgroup A",
+        "Value": {"Ref": "BusinessAnalystUser"}
+      },
+      "WorkgroupManagerUser": {
+        "Description": "workgroup_manager_user for access to Workgroup A and Workgroup B",
+        "Value": {"Ref": "WorkgroupManagerUser"}
+      },
+      "LakeFormationRole": {
+        "Description": "Lake Formation IAM role",
+        "Value": {"Ref": "LakeFormationWorkflowRole"}
+      }
 	},
   "Parameters": {
     "DMSCWRoleCreated": {
