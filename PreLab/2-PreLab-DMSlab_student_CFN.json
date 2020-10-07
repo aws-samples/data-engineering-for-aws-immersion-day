@@ -38,6 +38,28 @@
         "Value": {"Ref": "LakeFormationWorkflowRole"}
       }
 	},
+  "Parameters": {
+    "DMSCWRoleCreated": {
+            "Description": "dms-cloudwatch-logs-role already created in account?",
+            "Default": "no",
+            "Type": "String",
+            "AllowedValues": [
+                "no",
+                "yes"
+            ],          
+            "ConstraintDescription": "must specify 'yes' or 'no'."
+    }
+  },
+  "Conditions": {
+    "DMSCWRoleExist": {
+        "Fn::Equals": [
+            {
+                "Ref": "DMSCWRoleCreated"
+            },
+            "no"
+        ]
+    }
+  },
   "Resources": {
     "dmslabstudentvpc": {
       "Type": "AWS::EC2::VPC",
@@ -469,8 +491,10 @@
     },
     "DMSCloudWatchLogRole": {
       "Type": "AWS::IAM::Role",
+      "Condition": "DMSCWRoleExist",
       "Properties": {
         "RoleName" : "dms-cloudwatch-logs-role",
+        "Description": "Do not create the role to avoid duplication error, if it exists already",
         "AssumeRolePolicyDocument": {
           "Version": "2012-10-17",
           "Statement": [
