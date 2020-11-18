@@ -1025,7 +1025,7 @@
                 },
                 "PreferredMaintenanceWindow": "sat:05:40-sat:06:10",
                 "MultiAZ": false,
-                "EngineVersion": "3.3.1",
+                "EngineVersion": "3.4.2",
                 "AutoMinorVersionUpgrade": true,
                 "PubliclyAccessible": true
             }
