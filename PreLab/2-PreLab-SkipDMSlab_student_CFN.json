@@ -1013,7 +1013,7 @@
             "Type": "AWS::DMS::ReplicationInstance",
             "Properties": {
                 "ReplicationInstanceIdentifier": "dmsreplication-instance",
-                "ReplicationInstanceClass": "dms.t2.medium",
+                "ReplicationInstanceClass": "dms.t3.medium",
                 "AllocatedStorage": 50,
                 "VpcSecurityGroupIds": [
                     {
@@ -1474,7 +1474,7 @@
                     }
                 ],
                 "LoginProfile": {
-                    "Password": "master123"
+                    "Password": "Master123!"
                 }
             }
         },
@@ -1487,9 +1487,9 @@
                     }
                 ],
                 "LoginProfile": {
-                    "Password": "master123"
+                    "Password": "Master123!"
                 }
             }
         }
     }
-}
+}Hydr
