@@ -1013,7 +1013,7 @@
             "Type": "AWS::DMS::ReplicationInstance",
             "Properties": {
                 "ReplicationInstanceIdentifier": "dmsreplication-instance",
-                "ReplicationInstanceClass": "dms.t2.medium",
+                "ReplicationInstanceClass": "dms.t3.medium",
                 "AllocatedStorage": 50,
                 "VpcSecurityGroupIds": [
                     {
@@ -1025,7 +1025,7 @@
                 },
                 "PreferredMaintenanceWindow": "sat:05:40-sat:06:10",
                 "MultiAZ": false,
-                "EngineVersion": "3.3.1",
+                "EngineVersion": "3.4.2",
                 "AutoMinorVersionUpgrade": true,
                 "PubliclyAccessible": true
             }
@@ -1474,7 +1474,7 @@
                     }
                 ],
                 "LoginProfile": {
-                    "Password": "master123"
+                    "Password": "Master123!"
                 }
             }
         },
@@ -1487,9 +1487,9 @@
                     }
                 ],
                 "LoginProfile": {
-                    "Password": "master123"
+                    "Password": "Master123!"
                 }
             }
         }
     }
-}
+}Hydr

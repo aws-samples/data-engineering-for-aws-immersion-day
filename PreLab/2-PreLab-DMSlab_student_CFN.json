@@ -728,7 +728,7 @@
      "Properties": {
        "ManagedPolicyArns": [{ "Ref": "BusinessAnalystUserPolicy" }],
        "LoginProfile": {
-             "Password": "master123"
+             "Password": "Master123!"
            }
      }
   },
@@ -737,7 +737,7 @@
      "Properties": {
        "ManagedPolicyArns": [{ "Ref": "WorkgroupManagerUserPolicy" }],
        "LoginProfile": {
-             "Password": "master123"
+             "Password": "Master123!"
            }
      }
      }
