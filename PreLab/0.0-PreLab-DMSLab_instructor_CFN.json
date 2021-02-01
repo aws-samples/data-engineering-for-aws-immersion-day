@@ -189,7 +189,7 @@
                 "AllocatedStorage": "500",
                 "AllowMajorVersionUpgrade": "false",
                 "AutoMinorVersionUpgrade": "true",
-                "DBInstanceClass": "db.t2.xlarge",
+                "DBInstanceClass": "db.t2.2xlarge",
 		        "DBInstanceIdentifier": "dmslabinstance",
                 "Port": "5432",
                 "PubliclyAccessible": "true",
@@ -247,8 +247,8 @@
               "Parameters": {
                 "rds.logical_replication": "1",
                 "wal_sender_timeout": "0",
-                "max_wal_senders": "20"
-
+                "max_wal_senders": "20",
+                "max_replication_slots":"50"
               }
             }
         },
