@@ -360,6 +360,7 @@
       }
     },
     "ingress1": {
+      "DependsOn": "sgdefault",
       "Type": "AWS::EC2::SecurityGroupIngress",
       "Properties": {
         "GroupId": {
@@ -368,8 +369,7 @@
         "IpProtocol": "-1",
         "SourceSecurityGroupId": {
           "Ref": "sgdefault"
-        },
-        "SourceSecurityGroupOwnerId": "105763911922"
+        }
       }
     },
     "egress1": {
