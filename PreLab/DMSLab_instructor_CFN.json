@@ -357,7 +357,6 @@
             }
         },
         "ingress2": {
-            "DependsOn": "sgDMSLabSG",
             "Type": "AWS::EC2::SecurityGroupIngress",
             "Properties": {
                 "GroupId": {
@@ -368,7 +367,8 @@
                 "ToPort": "5432",
                 "SourceSecurityGroupId": {
                     "Ref": "sgDMSLabSG"
-                }
+                },
+                "SourceSecurityGroupOwnerId": "649225637812"
             }
         },
         "ingress3": {
