@@ -485,7 +485,8 @@
         },
         "Path": "/service-role/",
         "ManagedPolicyArns": [
-          "arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole"
+          "arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole",
+          "arn:aws:iam::aws:policy/AmazonKinesisFullAccess"
         ]
       }
     },
