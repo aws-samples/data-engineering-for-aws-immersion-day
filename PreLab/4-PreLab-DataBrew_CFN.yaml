@@ -1,0 +1,46 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  DataBrewOutputS3Bucket:
+    Type: 'AWS::S3::Bucket'
+
+  DataBrewLabRoleManagedPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - "s3:GetObject"
+              - "s3:PutObject"
+              - "s3:DeleteObject"
+              - "s3:PutBucketCORS"
+              - "s3:ListBucket"
+            Resource:
+              - !GetAtt DataBrewOutputS3Bucket.Arn
+              - !Join
+                  - ""
+                  - - "arn:aws:s3:::"
+                    - !Ref DataBrewOutputS3Bucket
+                    - "/*"
+              - "arn:aws:s3:::aws-dataengineering-day.workshop.aws"
+              - "arn:aws:s3:::aws-dataengineering-day.workshop.aws/*"
+
+  DataBrewLabRole:
+    Type: AWS::IAM::Role
+    DependsOn: DataBrewLabRoleManagedPolicy
+    Properties:
+      Path: "/service-role/"
+      AssumeRolePolicyDocument: "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"databrew.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}"
+      MaxSessionDuration: 3600
+      ManagedPolicyArns:
+        - !Ref DataBrewLabRoleManagedPolicy
+        - "arn:aws:iam::aws:policy/service-role/AWSGlueDataBrewServiceRole"
+
+Outputs:
+  DataBrewOutputS3Bucket:
+    Description: S3 bucket for DataBrew output
+    Value: !Ref DataBrewOutputS3Bucket
+  DataBrewLabRole:
+    Description: IAM role for DataBrew lab
+    Value: !Ref DataBrewLabRole
