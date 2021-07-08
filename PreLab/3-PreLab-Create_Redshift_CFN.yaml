@@ -1,8 +1,8 @@
+---
 AWSTemplateFormatVersion: '2010-09-09'
 Parameters:
   DatabaseName:
-    Description: The name of the first database to be created when the cluster is
-      created
+    Description: The name of the first database to be created when the cluster is created
     Type: String
     Default: dev
     AllowedPattern: "([a-z]|[0-9])+"
@@ -11,8 +11,8 @@ Parameters:
     Type: String
     Default: multi-node
     AllowedValues:
-    - single-node
-    - multi-node
+      - single-node
+      - multi-node
   NumberOfNodes:
     Description: The number of compute nodes in the cluster. For multi-node clusters,
       the NumberOfNodes parameter must be greater than 1
@@ -23,10 +23,10 @@ Parameters:
     Type: String
     Default: ds2.8xlarge
     AllowedValues:
-    - ds2.xlarge
-    - ds2.8xlarge
-    - dc2.large
-    - dc2.8xlarge
+      - ds2.xlarge
+      - ds2.8xlarge
+      - dc2.large
+      - dc2.8xlarge
   MasterUsername:
     Description: The user name that is associated with the master user account for the cluster that is being created
     Type: String
@@ -52,24 +52,24 @@ Parameters:
 Conditions:
   IsMultiNodeCluster:
     Fn::Equals:
-    - Ref: ClusterType
-    - multi-node
+      - Ref: ClusterType
+      - multi-node
 Resources:
   RedshiftRole:
     Type: AWS::IAM::Role
-    Properties :
+    Properties:
       RoleName: RedshiftImmersionRole
       AssumeRolePolicyDocument:
-        Version : 2012-10-17
-        Statement :
+        Version: 2012-10-17
+        Statement:
           -
-            Effect : Allow
-            Principal :
-              Service :
+            Effect: Allow
+            Principal:
+              Service:
                 - redshift.amazonaws.com
-            Action :
+            Action:
               - sts:AssumeRole
-      Path : /
+      Path: /
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
         - arn:aws:iam::aws:policy/AWSGlueConsoleFullAccess
@@ -77,40 +77,31 @@ Resources:
     Type: AWS::Redshift::Cluster
     DependsOn:
       - AttachGateway
-      - RedshiftRole
     Properties:
-      ClusterType:
-        Ref: ClusterType
+      ClusterType: !Ref ClusterType
       NumberOfNodes:
         Fn::If:
-        - IsMultiNodeCluster
-        - Ref: NumberOfNodes
-        - Ref: AWS::NoValue
-      NodeType:
-        Ref: NodeType
-      DBName:
-        Ref: DatabaseName
-      MasterUsername:
-        Ref: MasterUsername
-      MasterUserPassword:
-        Ref: MasterUserPassword
+          - IsMultiNodeCluster
+          - Ref: NumberOfNodes
+          - Ref: AWS::NoValue
+      NodeType: !Ref NodeType
+      DBName: !Ref DatabaseName
+      MasterUsername: !Ref MasterUsername
+      MasterUserPassword: !Ref MasterUserPassword
       ClusterParameterGroupName: default.redshift-1.0
       VpcSecurityGroupIds:
-      - Ref: SecurityGroup
-      ClusterSubnetGroupName:
-        Ref: RedshiftClusterSubnetGroup
-      PubliclyAccessible: 'true'
-      Port:
-        Ref: PortNumber
-      IamRoles:
-        - Fn::GetAtt: [RedshiftRole, Arn]
+        - !Ref SecurityGroup
+      ClusterSubnetGroupName: !Ref RedshiftClusterSubnetGroup
+      PubliclyAccessible: true
+      Port: !Ref PortNumber
+      IamRoles: !GetAtt RedshiftRole.Arn
   RedshiftClusterSubnetGroup:
     Type: AWS::Redshift::ClusterSubnetGroup
     Properties:
       Description: Cluster subnet group
       SubnetIds:
-      - Ref: PublicSubnet1
-      - Ref: PublicSubnet2
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
   VPC:
     Type: AWS::EC2::VPC
     Properties:
@@ -120,33 +111,29 @@ Resources:
     Properties:
       CidrBlock: 10.0.0.0/24
       AvailabilityZone: !Select [0, !GetAZs ""]
-      VpcId:
-        Ref: VPC
+      VpcId: !Ref VPC
   PublicSubnet2:
     Type: AWS::EC2::Subnet
     Properties:
       CidrBlock: 10.0.1.0/24
       AvailabilityZone: !Select [1, !GetAZs ""]
-      VpcId:
-        Ref: VPC
+      VpcId: !Ref VPC
   SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Security group
       SecurityGroupIngress:
-      - CidrIp:
-          Ref: InboundTraffic
-        FromPort: 5439
-        ToPort: 5439
-        IpProtocol: tcp
-      VpcId:
-        Ref: VPC
+        - CidrIp: !Ref InboundTraffic
+          FromPort: 5439
+          ToPort: 5439
+          IpProtocol: tcp
+      VpcId: !Ref VPC
   SecurityGroupSelfReference:
     Type: AWS::EC2::SecurityGroupIngress
     Properties:
       Description: Self Referencing Rule
       FromPort: -1
-      IpProtocol: -1
+      IpProtocol: "-1"
       GroupId: !GetAtt [SecurityGroup, GroupId]
       SourceSecurityGroupId: !GetAtt [SecurityGroup, GroupId]
       ToPort: -1
@@ -155,38 +142,29 @@ Resources:
   AttachGateway:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
-      VpcId:
-        Ref: VPC
-      InternetGatewayId:
-        Ref: InternetGateway
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
-      VpcId:
-        Ref: VPC
+      VpcId: !Ref VPC
   PublicRoute:
     Type: AWS::EC2::Route
     DependsOn: AttachGateway
     Properties:
-      RouteTableId:
-        Ref: PublicRouteTable
+      RouteTableId: !Ref PublicRouteTable
       DestinationCidrBlock: 0.0.0.0/0
-      GatewayId:
-        Ref: InternetGateway
+      GatewayId: !Ref InternetGateway
   PublicSubnetRouteTableAssociation1:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId:
-        Ref: PublicSubnet1
-      RouteTableId:
-        Ref: PublicRouteTable
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
   PublicSubnetRouteTableAssociation2:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      SubnetId:
-        Ref: PublicSubnet2
-      RouteTableId:
-        Ref: PublicRouteTable
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
 Outputs:
   ClusterEndpoint:
     Description: Redshift Hostname and Port
@@ -202,4 +180,4 @@ Outputs:
     Value: !Ref MasterUserPassword
   RedshiftDatabaseName:
     Description: Redshift Database Name
-    Value: !Ref DatabaseName  
+    Value: !Ref DatabaseName
