@@ -94,7 +94,8 @@ Resources:
       ClusterSubnetGroupName: !Ref RedshiftClusterSubnetGroup
       PubliclyAccessible: true
       Port: !Ref PortNumber
-      IamRoles: !GetAtt RedshiftRole.Arn
+      IamRoles: 
+        - !GetAtt RedshiftRole.Arn
   RedshiftClusterSubnetGroup:
     Type: AWS::Redshift::ClusterSubnetGroup
     Properties:

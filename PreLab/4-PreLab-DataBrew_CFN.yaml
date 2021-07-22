@@ -29,6 +29,8 @@ Resources:
             Resource:
               - !GetAtt DataBrewOutputS3Bucket.Arn
               - !Sub "arn:aws:s3:::${DataBrewOutputS3Bucket}/*"
+              - arn:aws:s3:::aws-dataengineering-day.workshop.aws
+              - arn:aws:s3:::aws-dataengineering-day.workshop.aws/*
 
   DataBrewLabRole:
     Type: AWS::IAM::Role

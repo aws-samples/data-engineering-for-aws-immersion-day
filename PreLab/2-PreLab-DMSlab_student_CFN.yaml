@@ -25,6 +25,12 @@ Outputs:
   LakeFormationRole:
     Description: Lake Formation IAM role
     Value: !Ref LakeFormationWorkflowRole
+  SecurityGroupId:
+    Description: Default Security Group Id
+    Value: !Ref sgdefault
+  SubnetId:
+    Description: Subnet ID to be used with database connector
+    Value: !Ref dmslabstudentsubnet1
 Parameters:
   DMSCWRoleCreated:
     Description: dms-cloudwatch-logs-role already created in account?

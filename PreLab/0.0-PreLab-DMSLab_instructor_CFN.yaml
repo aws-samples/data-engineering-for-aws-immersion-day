@@ -212,8 +212,6 @@ Resources:
           export ENDPOINT=${RDSDMSLabDB.Endpoint.Address}
 
           nohup psql --host=${!ENDPOINT} --port=5432 --dbname=sportstickets --username=master -f install-postgresql.sql
-          --//
-
       Monitoring: false
       Tags:
         -
@@ -341,6 +339,14 @@ Resources:
       FromPort: 5432
       ToPort: 5432
       SourceSecurityGroupId: !Ref DMSLabSG
+  SGIngress3:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref DMSLabDBSG
+      IpProtocol: tcp
+      FromPort: 5432
+      ToPort: 5432
+      CidrIp: 10.0.0.5/32
   SGEgress1:
     Type: AWS::EC2::SecurityGroupEgress
     Properties:

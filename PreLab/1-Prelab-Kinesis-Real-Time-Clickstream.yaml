@@ -513,13 +513,13 @@ Resources:
       Runtime: python3.8
       Timeout: 300
 
-  EmptyDMSLabS3Bucket:
+  EmptyRawS3Bucket:
     Type: "Custom::EmptyS3Bucket"
     Properties:
       ServiceToken: !GetAtt S3BucketHandler.Arn
       Bucket: !Ref RawS3Bucket
 
-  EmptyWorkgroupAS3Bucket:
+  EmptyProcessedS3Bucket:
     Type: "Custom::EmptyS3Bucket"
     Properties:
       ServiceToken: !GetAtt S3BucketHandler.Arn

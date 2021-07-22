@@ -25,6 +25,12 @@ Outputs:
   LakeFormationRole:
     Description: Lake Formation IAM role
     Value: !Ref LakeFormationWorkflowRole
+  SecurityGroupId:
+    Description: Default Security Group Id
+    Value: !Ref sgdefault
+  SubnetId:
+    Description: Subnet ID to be used with database connector
+    Value: !Ref dmslabstudentsubnet1
 Parameters:
   ServerName:
     Type: String
@@ -244,6 +250,14 @@ Resources:
       GroupId: !Ref sgdefault
       IpProtocol: '-1'
       CidrIp: 0.0.0.0/0
+  S3Endpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      RouteTableIds:
+        - !Ref dmslabstudentrtable1
+        - !Ref dmslabstudentrtable2
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
+      VpcId: !Ref dmslabstudentvpc
   DMSLabS3Bucket:
     Type: AWS::S3::Bucket
   DMSLabS3Policy:
