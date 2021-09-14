@@ -1,4 +1,14 @@
+---
 AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  SourceBucket:
+    Description: S3 bucket which contains the source object
+    Default: aws-dataengineering-day.workshop.aws
+    Type: String
+  SourceKey:
+    Description: S3 Key which contains the source object
+    Default: states_daily.csv.gz
+    Type: String
 Resources:
   DataBrewOutputS3Bucket:
     Type: 'AWS::S3::Bucket'
@@ -18,24 +28,156 @@ Resources:
               - "s3:ListBucket"
             Resource:
               - !GetAtt DataBrewOutputS3Bucket.Arn
-              - !Join
-                  - ""
-                  - - "arn:aws:s3:::"
-                    - !Ref DataBrewOutputS3Bucket
-                    - "/*"
-              - "arn:aws:s3:::aws-dataengineering-day.workshop.aws"
-              - "arn:aws:s3:::aws-dataengineering-day.workshop.aws/*"
+              - !Sub "arn:aws:s3:::${DataBrewOutputS3Bucket}/*"
+              - arn:aws:s3:::aws-dataengineering-day.workshop.aws
+              - arn:aws:s3:::aws-dataengineering-day.workshop.aws/*
 
   DataBrewLabRole:
     Type: AWS::IAM::Role
-    DependsOn: DataBrewLabRoleManagedPolicy
     Properties:
       Path: "/service-role/"
-      AssumeRolePolicyDocument: "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"databrew.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - databrew.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
       MaxSessionDuration: 3600
       ManagedPolicyArns:
         - !Ref DataBrewLabRoleManagedPolicy
         - "arn:aws:iam::aws:policy/service-role/AWSGlueDataBrewServiceRole"
+
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: LambdaRolePolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: s3:GetObject
+                Resource: !Sub arn:aws:s3:::${SourceBucket}/*
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:DeleteObject
+                Resource: !Sub arn:aws:s3:::${DataBrewOutputS3Bucket}/*
+              - Effect: Allow
+                Action: s3:ListBucket
+                Resource: !Sub arn:aws:s3:::${DataBrewOutputS3Bucket}
+              - Effect: Allow
+                Action: s3:ListBucket
+                Resource: !Sub arn:aws:s3:::${DataBrewOutputS3Bucket}
+              - Effect: Allow
+                Action: logs:CreateLogGroup
+                Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:*
+
+  LambdaCopySource:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Role: !GetAtt LambdaRole.Arn
+      Code:
+        ZipFile: !Sub |
+          import os
+          import json
+          import cfnresponse
+
+          import boto3
+          from botocore.exceptions import ClientError
+
+          s3 = boto3.client('s3')
+
+          def handler(event, context):
+              print("Received event: %s" % json.dumps(event))
+              source_bucket = '${SourceBucket}'
+              source_prefix = '${SourceKey}'
+              bucket = '${DataBrewOutputS3Bucket}'
+              prefix = '${SourceKey}'
+
+              result = cfnresponse.SUCCESS
+
+              try:
+                  if event['RequestType'] == 'Create' or event['RequestType'] == 'Update':
+                      copy_source = {'Bucket': source_bucket, 'Key': source_prefix}
+                      s3.copy(copy_source, bucket, prefix)
+                  elif event['RequestType'] == 'Delete':
+                      result = cfnresponse.SUCCESS
+              except ClientError as e:
+                  print('Error: %s', e)
+                  result = cfnresponse.FAILED
+
+              cfnresponse.send(event, context, result, {})
+
+      Runtime: python3.8
+      Timeout: 60
+
+  CopySourceObject:
+    Type: "Custom::CopySourceObject"
+    Properties:
+      ServiceToken: !GetAtt LambdaCopySource.Arn
+
+  S3BucketHandler:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Role: !GetAtt LambdaRole.Arn
+      Code:
+        ZipFile: |
+          import os
+          import json
+          import cfnresponse
+          import boto3
+          from botocore.exceptions import ClientError
+
+          s3 = boto3.resource('s3')
+
+
+          def handler(event, context):
+              print("Received event: %s" % json.dumps(event))
+              s3_bucket = s3.Bucket(event['ResourceProperties']['Bucket'])
+
+              try:
+                  if event['RequestType'] == 'Create' or event['RequestType'] == 'Update':
+                      result = cfnresponse.SUCCESS
+                  elif event['RequestType'] == 'Delete':
+                      s3_bucket.objects.delete()
+                      result = cfnresponse.SUCCESS
+              except ClientError as e:
+                  print('Error: %s', e)
+                  result = cfnresponse.FAILED
+
+              cfnresponse.send(event, context, result, {})
+
+      Runtime: python3.8
+      Timeout: 300
+
+  EmptyS3Bucket:
+    Type: "Custom::EmptyS3Bucket"
+    Properties:
+      ServiceToken: !GetAtt S3BucketHandler.Arn
+      Bucket: !Ref DataBrewOutputS3Bucket
 
 Outputs:
   DataBrewOutputS3Bucket:
@@ -44,3 +186,6 @@ Outputs:
   DataBrewLabRole:
     Description: IAM role for DataBrew lab
     Value: !Ref DataBrewLabRole
+  DatasetS3Path:
+    Description: S3 Path to the dataset
+    Value: !Sub s3://${DataBrewOutputS3Bucket}/${SourceKey}

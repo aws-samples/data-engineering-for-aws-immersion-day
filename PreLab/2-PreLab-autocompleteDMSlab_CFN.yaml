@@ -1,0 +1,992 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Outputs:
+  DMSLabRoleS3:
+    Description: The DMS serivce role
+    Value: !GetAtt DMSLabRoleS3.Arn
+  GlueLabRole:
+    Description: The Glue service role
+    Value: !Ref GlueLabRole
+  BucketName:
+    Description: S3 Bucket that was created
+    Value: !Ref DMSLabS3Bucket
+  S3BucketWorkgroupA:
+    Description: S3 Bucket for storing workgroup A results
+    Value: !Ref S3BucketWorkgroupA
+  S3BucketWorkgroupB:
+    Description: S3 bucket for storing workgroup B results
+    Value: !Ref S3BucketWorkgroupB
+  BusinessAnalystUser:
+    Description: business_analyst_user for Workgroup A
+    Value: !Ref BusinessAnalystUser
+  WorkgroupManagerUser:
+    Description: workgroup_manager_user for access to Workgroup A and Workgroup B
+    Value: !Ref WorkgroupManagerUser
+  LakeFormationRole:
+    Description: Lake Formation IAM role
+    Value: !Ref LakeFormationWorkflowRole
+  SecurityGroupId:
+    Description: Default Security Group Id
+    Value: !Ref sgdefault
+  SubnetId:
+    Description: Subnet ID to be used with database connector
+    Value: !Ref dmslabstudentsubnet1
+Parameters:
+  ServerName:
+    Type: String
+  DMSVPCRoleCreated:
+    Description: dms-vpc-role already created in account?
+    Default: no
+    Type: String
+    AllowedValues:
+      - no
+      - yes
+    ConstraintDescription: Must specify 'yes' or 'no'
+  DMSCWRoleCreated:
+    Description: dms-cloudwatch-logs-role already created in account?
+    Default: yes
+    Type: String
+    AllowedValues:
+      - no
+      - yes
+    ConstraintDescription: must specify 'yes' or 'no'.
+Conditions:
+  DMSVPCRoleExist:
+    Fn::Equals:
+      - !Ref DMSVPCRoleCreated
+      - no
+  DMSCWRoleExist:
+    Fn::Equals:
+      - !Ref DMSCWRoleCreated
+      - no
+Resources:
+  dmslabstudentvpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/24
+      EnableDnsSupport: true
+      EnableDnsHostnames: false
+      Tags:
+        -
+          Key: Name
+          Value: dmslstudv1
+  dmslabstudentsubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.0/26
+      AvailabilityZone: !Select
+        - 0
+        - Fn::GetAZs: !Ref 'AWS::Region'
+      VpcId:
+        !Ref dmslabstudentvpc
+      Tags:
+        -
+          Key: Name
+          Value: private_subnet
+  dmslabstudentsubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.128/26
+      AvailabilityZone: !Select
+        - 1
+        - Fn::GetAZs: !Ref 'AWS::Region'
+      VpcId:
+        !Ref dmslabstudentvpc
+      Tags:
+        -
+          Key: Name
+          Value: private_subnet
+  dmslabstudentsubnet3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.64/26
+      AvailabilityZone: !Select
+        - 2
+        - Fn::GetAZs: !Ref 'AWS::Region'
+      VpcId:
+        !Ref dmslabstudentvpc
+      Tags:
+        -
+          Key: Name
+          Value: public_subnet
+  dmslabstudentigw:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        -
+          Key: Name
+          Value: DMSLab-IGW
+  NatPublicIP:
+    DependsOn: dmslabstudentvpc
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatPublicIP.AllocationId
+      SubnetId: !Ref dmslabstudentsubnet3
+      Tags:
+        -
+          Key: Name
+          Value: NatGateway
+  dmslabdopt:
+    Type: AWS::EC2::DHCPOptions
+    Properties:
+      DomainName: ec2.internal
+      DomainNameServers:
+        - AmazonProvidedDNS
+  dmslabstudentacl:
+    Type: AWS::EC2::NetworkAcl
+    Properties:
+      VpcId:
+        !Ref dmslabstudentvpc
+  dmslabstudentrtable1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref dmslabstudentvpc
+      Tags:
+        -
+          Key: Network
+          Value: Private
+        -
+          Key: Nane
+          Value: PrivateRouteTable
+  dmslabstudentrtable2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref dmslabstudentvpc
+      Tags:
+        -
+          Key: Network
+          Value: Public
+        -
+          Key: Name
+          Value: PublicRouteTable
+  sgdefault:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: default VPC security group
+      VpcId: !Ref dmslabstudentvpc
+  acl1:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      CidrBlock: 0.0.0.0/0
+      Egress: true
+      Protocol: -1
+      RuleAction: allow
+      RuleNumber: 100
+      NetworkAclId: !Ref dmslabstudentacl
+  acl2:
+    Type: AWS::EC2::NetworkAclEntry
+    Properties:
+      CidrBlock: 0.0.0.0/0
+      Protocol: -1
+      RuleAction: allow
+      RuleNumber: 100
+      NetworkAclId: !Ref dmslabstudentacl
+  subnetacl1:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      NetworkAclId: !Ref dmslabstudentacl
+      SubnetId: !Ref dmslabstudentsubnet3
+  subnetacl2:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      NetworkAclId: !Ref dmslabstudentacl
+      SubnetId: !Ref dmslabstudentsubnet1
+  subnetacl3:
+    Type: AWS::EC2::SubnetNetworkAclAssociation
+    Properties:
+      NetworkAclId: !Ref dmslabstudentacl
+      SubnetId: !Ref dmslabstudentsubnet2
+  gw1:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref dmslabstudentvpc
+      InternetGatewayId: !Ref dmslabstudentigw
+  subnetroute1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref dmslabstudentrtable1
+      SubnetId: !Ref dmslabstudentsubnet1
+  subnetroute3:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref dmslabstudentrtable1
+      SubnetId: !Ref dmslabstudentsubnet2
+  subnetroute4:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref dmslabstudentrtable2
+      SubnetId: !Ref dmslabstudentsubnet3
+  route1:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      RouteTableId: !Ref dmslabstudentrtable1
+      NatGatewayId: !Ref NatGateway
+  route2:
+    DependsOn: gw1
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      RouteTableId: !Ref dmslabstudentrtable2
+      GatewayId: !Ref dmslabstudentigw
+  dchpassoc1:
+    Type: AWS::EC2::VPCDHCPOptionsAssociation
+    Properties:
+      VpcId: !Ref dmslabstudentvpc
+      DhcpOptionsId: !Ref dmslabdopt
+  ingress1:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref sgdefault
+      IpProtocol: '-1'
+      SourceSecurityGroupId: !Ref sgdefault
+  egress1:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref sgdefault
+      IpProtocol: '-1'
+      CidrIp: 0.0.0.0/0
+  S3Endpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      RouteTableIds:
+        - !Ref dmslabstudentrtable1
+        - !Ref dmslabstudentrtable2
+      ServiceName: !Sub 'com.amazonaws.${AWS::Region}.s3'
+      VpcId: !Ref dmslabstudentvpc
+  DMSLabS3Bucket:
+    Type: AWS::S3::Bucket
+  DMSLabS3Policy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: DMSLabS3Policy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:PutObject
+              - s3:DeleteObject
+              - s3:PutObjectTagging
+            Resource:
+              - !Sub arn:aws:s3:::${DMSLabS3Bucket}/*
+          -
+            Effect: Allow
+            Action:
+              - s3:ListBucket
+            Resource:
+              - !Sub arn:aws:s3:::${DMSLabS3Bucket}
+      Roles:
+        - !Ref DMSLabRoleS3
+        - !Ref GlueLabRole
+  DMSLabRoleS3:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - dms.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+  DmsVpcRole:
+    Type: AWS::IAM::Role
+    Condition: DMSVPCRoleExist
+    Properties:
+      RoleName: dms-vpc-role
+      Description: Do not create the role to avoid duplication error, if it exists already
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - dms.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/service-role/AmazonDMSVPCManagementRole
+  LambdaDMSPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: LambdaDMSPolicy
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Action:
+              - cloudformation:DescribeChangeSet
+              - cloudformation:DescribeStackResources
+              - cloudformation:DescribeStacks
+              - cloudformation:GetTemplate
+              - cloudformation:ListStackResources
+              - cloudwatch:*
+              - cognito-identity:ListIdentityPools
+              - cognito-sync:GetCognitoEvents
+              - cognito-sync:SetCognitoEvents
+              - dms:*
+              - dynamodb:*
+              - ec2:DescribeSecurityGroups
+              - ec2:DescribeSubnets
+              - ec2:DescribeVpcs
+              - events:*
+              - iam:GetPolicy
+              - iam:GetPolicyVersion
+              - iam:GetRole
+              - iam:GetRolePolicy
+              - iam:ListAttachedRolePolicies
+              - iam:ListRolePolicies
+              - iam:ListRoles
+              - iam:PassRole
+              - lambda:*
+              - logs:*
+              - s3:*
+              - ssm:*
+              - tag:GetResources
+              - xray:PutTelemetryRecords
+              - xray:PutTraceSegments
+            Resource: "*"
+      Roles:
+        - !Ref LambdaDMSRole
+  LambdaDMSRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - dms.amazonaws.com
+                - ssm.amazonaws.com
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+  GlueLabRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - glue.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /service-role/
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
+  DMSCloudWatchLogRole:
+    Type: AWS::IAM::Role
+    Condition: DMSCWRoleExist
+    Properties:
+      RoleName: dms-cloudwatch-logs-role
+      Description: Do not create the role to avoid duplication error, if it exists already
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - dms.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonDMSCloudWatchLogsRole
+  LakeFormationWorkflowRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - glue.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        -
+          PolicyName: DatalakeDataAccess
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              -
+                Sid: Lakeformation
+                Effect: Allow
+                Action:
+                  - lakeformation:GetDataAccess
+                  - lakeformation:GrantPermissions
+                Resource: "*"
+        -
+          PolicyName: DatalakePassRole
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              -
+                Sid: PassRolePermissions
+                Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource: "*"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
+        - arn:aws:iam::aws:policy/AWSGlueConsoleFullAccess
+  S3BucketWorkgroupA:
+    Type: AWS::S3::Bucket
+  S3BucketWorkgroupB:
+    Type: AWS::S3::Bucket
+  BusinessAnalystUserPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Policy for providing required access to the business analyst user
+      Path: /
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Action: athena:ListWorkGroups
+            Resource: "*"
+          -
+            Effect: Allow
+            Action:
+              - s3:ListBucketMultipartUploads
+              - athena:StartQueryExecution
+              - athena:GetQueryResultsStream
+              - athena:GetQueryResults
+              - s3:CreateBucket
+              - s3:ListBucket
+              - athena:DeleteNamedQuery
+              - athena:GetNamedQuery
+              - athena:ListTagsForResource
+              - athena:ListQueryExecutions
+              - s3:ListMultipartUploadParts
+              - athena:ListNamedQueries
+              - s3:PutObject
+              - s3:GetObject
+              - s3:GetObjectAcl
+              - athena:GetWorkGroup
+              - athena:CreateNamedQuery
+              - s3:AbortMultipartUpload
+              - athena:StopQueryExecution
+              - athena:GetQueryExecution
+              - athena:BatchGetNamedQuery
+              - s3:GetBucketLocation
+              - athena:BatchGetQueryExecution
+            Resource:
+              - !Sub arn:aws:s3:::${S3BucketWorkgroupA}/*
+              - !Sub arn:aws:s3:::${S3BucketWorkgroupA}
+              - !Sub arn:aws:s3:::${DMSLabS3Bucket}
+              - !Sub arn:aws:s3:::${DMSLabS3Bucket}/*
+              - !Sub arn:aws:athena:${AWS::Region}:${AWS::AccountId}:workgroup/workgroupA
+          -
+            Effect: Allow
+            Action: athena:GetQueryExecutions
+            Resource: !Sub arn:aws:athena:${AWS::Region}:${AWS::AccountId}:workgroup/workgroupA
+          -
+            Effect: Allow
+            Action:
+              - glue:Get*
+              - glue:GetTable
+            Resource:
+              - !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:catalog
+              - !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:catalog/awsdatacatalog
+              - !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:database/ticketdata
+              - !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:table/ticketdata/parquet_sporting_event
+              - !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:table/ticketdata/parquet_sport_team
+              - !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:table/ticketdata/parquet_sport_location
+              - !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:table/ticketdata/sporting_event_info
+  DMSReplicationSubnetGroup:
+    Type: AWS::DMS::ReplicationSubnetGroup
+    Properties:
+      ReplicationSubnetGroupIdentifier: DMSReplicationSubnetGroup
+      ReplicationSubnetGroupDescription: subnet group for DMS Replication
+      SubnetIds:
+        - !Ref dmslabstudentsubnet1
+        - !Ref dmslabstudentsubnet2
+  DMSReplicationInstance:
+    Type: AWS::DMS::ReplicationInstance
+    Properties:
+      ReplicationInstanceIdentifier: dmsreplication-instance
+      ReplicationInstanceClass: dms.t3.medium
+      AllocatedStorage: 50
+      VpcSecurityGroupIds:
+        - !Ref sgdefault
+      ReplicationSubnetGroupIdentifier:
+        !Ref DMSReplicationSubnetGroup
+      PreferredMaintenanceWindow: sat:05:40-sat:06:10
+      MultiAZ: false
+      EngineVersion: 3.4.4
+      AutoMinorVersionUpgrade: true
+      PubliclyAccessible: true
+  DMSEndpointSource:
+    Type: AWS::DMS::Endpoint
+    Properties:
+      EndpointIdentifier: rds-source-endpoint
+      EndpointType: source
+      EngineName: postgres
+      Username: master
+      Password: master123
+      ServerName: !Ref ServerName
+      Port: 5432
+      DatabaseName: sportstickets
+      SslMode: none
+  DMSEndpointTarget:
+    Type: AWS::DMS::Endpoint
+    Properties:
+      EndpointIdentifier: s3-target-endpoint
+      EndpointType: target
+      EngineName: s3
+      ExtraConnectionAttributes: addColumnName=true;
+      SslMode: none
+      S3Settings:
+        BucketFolder: tickets
+        BucketName: !Ref DMSLabS3Bucket
+        ServiceAccessRoleArn: !GetAtt DMSLabRoleS3.Arn
+  CDCEndpointTarget:
+    Type: AWS::DMS::Endpoint
+    Properties:
+      EndpointIdentifier: rds-cdc-endpoint
+      EndpointType: target
+      EngineName: s3
+      ExtraConnectionAttributes: addColumnName=true;
+      SslMode: none
+      S3Settings:
+        BucketFolder: cdc
+        BucketName: !Ref DMSLabS3Bucket
+        ServiceAccessRoleArn: !GetAtt DMSLabRoleS3.Arn
+  DMSReplicationInstanceParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: dms-replication-instance
+      Type: String
+      Value: !Ref DMSReplicationInstance
+      Description: SSM Parameter for DMS replication instance.
+  DMSEndpointSourceParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: dms-source-endpoint
+      Type: String
+      Value: !Ref DMSEndpointSource
+      Description: SSM Parameter for DMS Source Endpoint.
+  DMSEndpointTargetParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: dms-target-endpoint
+      Type: String
+      Value: !Ref DMSEndpointTarget
+      Description: SSM Parameter for DMS Target Endpoint.
+  CDCReplicationTaskParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: cdc-replication-task
+      Type: String
+      Value: !Ref CDCTask
+      Description: SSM Parameter for CDC replication task.
+  DMSReplicationTaskParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: dms-replication-task
+      Type: String
+      Value: !Ref DMSReplicationTask
+      Description: SSM Parameter for DMS replication task.
+  LambdaDMSTestConnection:
+    Type: AWS::Lambda::Function
+    DependsOn: DMSReplicationTask
+    Properties:
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaDMSRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+
+          client = boto3.client('dms')
+
+          ssm = boto3.client('ssm')
+
+          def lambda_handler(event, context):
+              response = ssm.get_parameters(
+                Names=[
+                    'dms-replication-instance',
+                    'dms-source-endpoint',
+                    'dms-target-endpoint',
+                    'dms-replication-task'
+                ],
+                WithDecryption=False)
+
+              dms_replication_instance = ''
+              dms_source_endpoint = ''
+              dms_target_endpoint = ''
+              dms_replication_task = ''
+
+              for item in response['Parameters']:
+                  if item['Name'] == 'dms-replication-instance':
+                      dms_replication_instance = item['Value']
+                  if item['Name'] == 'dms-source-endpoint':
+                      dms_source_endpoint = item['Value']
+                  if item['Name'] == 'dms-target-endpoint':
+                      dms_target_endpoint = item['Value']
+                  if item['Name'] == 'dms-replication-task':
+                      dms_replication_task = item['Value']
+              dms_response = client.test_connection(
+                  EndpointArn = dms_source_endpoint,
+                  ReplicationInstanceArn = dms_replication_instance)
+
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps(dms_response)
+              }
+
+      Runtime: python3.7
+      Timeout: 60
+      TracingConfig:
+        Mode: Active
+  LambdaDMSStartTask:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.lambda_handler
+      Role: !GetAtt LambdaDMSRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+
+          client = boto3.client('dms')
+
+          ssm = boto3.client('ssm')
+
+          def lambda_handler(event, context):
+              response = ssm.get_parameters(
+                  Names=[
+                      'dms-replication-instance',
+                      'dms-source-endpoint',
+                      'dms-target-endpoint',
+                      'dms-replication-task',
+                      'cdc-replication-task'
+                  ],
+                  WithDecryption=False)
+
+              dms_replication_instance = ''
+              dms_source_endpoint = ''
+              dms_target_endpoint = ''
+              dms_replication_task = ''
+              cdc_replication_task = ''
+
+              for item in response['Parameters']:
+                  if item['Name'] == 'dms-replication-instance':
+                    dms_replication_instance = item['Value']
+                  if item['Name'] == 'dms-source-endpoint':
+                    dms_source_endpoint = item['Value']
+                  if item['Name'] == 'dms-target-endpoint':
+                    dms_target_endpoint = item['Value']
+                  if item['Name'] == 'dms-replication-task':
+                    dms_replication_task = item['Value']
+                  if item['Name'] == 'cdc-replication-task':
+                    cdc_replication_task = item['Value']
+
+              dms_start_replication = client.start_replication_task(
+                  ReplicationTaskArn = dms_replication_task,
+                  StartReplicationTaskType= 'start-replication')
+
+              cdc_start_replication = client.start_replication_task(
+                  ReplicationTaskArn = cdc_replication_task,
+                  StartReplicationTaskType= 'start-replication')
+
+      Runtime: python3.7
+      Timeout: 10
+      TracingConfig:
+        Mode: Active
+  EventBridgeInvokeLambdaSchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: ScheduledRule
+      ScheduleExpression: rate(1 minute)
+      State: ENABLED
+      Targets:
+        -
+          Arn: !GetAtt LambdaDMSStartTask.Arn
+          Id: InvokeLambdaTarget
+  PermissionForEventsToInvokeLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref LambdaDMSStartTask
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt EventBridgeInvokeLambdaSchedule.Arn
+  DMSReplicationTask:
+    Type: AWS::DMS::ReplicationTask
+    Properties:
+      ReplicationTaskIdentifier: dms-task-full-dump
+      SourceEndpointArn: !Ref DMSEndpointSource
+      TargetEndpointArn: !Ref DMSEndpointTarget
+      ReplicationInstanceArn: !Ref DMSReplicationInstance
+      MigrationType: full-load
+      TableMappings: "{\"rules\":[{\"rule-type\":\"selection\",\"rule-id\":\"1\",\"rule-name\":\"1\",\"object-locator\":{\"schema-name\":\"dms_sample\",\"table-name\":\"%\"},\"rule-action\":\"include\",\"filters\":[]}]}"
+      ReplicationTaskSettings: "{\"TargetMetadata\":{\"TargetSchema\":\"\",\"SupportLobs\":true,\"FullLobMode\":false,\"LobChunkSize\":0,\"LimitedSizeLobMode\":true,\"LobMaxSize\":32,\"InlineLobMaxSize\":0,\"LoadMaxFileSize\":0,\"ParallelLoadThreads\":0,\"ParallelLoadBufferSize\":0,\"BatchApplyEnabled\":false,\"TaskRecoveryTableEnabled\":false,\"ParallelLoadQueuesPerThread\":0,\"ParallelApplyThreads\":0,\"ParallelApplyBufferSize\":0,\"ParallelApplyQueuesPerThread\":0},\"FullLoadSettings\":{\"TargetTablePrepMode\":\"DROP_AND_CREATE\",\"CreatePkAfterFullLoad\":false,\"StopTaskCachedChangesApplied\":false,\"StopTaskCachedChangesNotApplied\":false,\"MaxFullLoadSubTasks\":8,\"TransactionConsistencyTimeout\":600,\"CommitRate\":10000},\"Logging\":{\"EnableLogging\":false,\"LogComponents\":[{\"Id\":\"TRANSFORMATION\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"SOURCE_UNLOAD\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"IO\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"TARGET_LOAD\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"PERFORMANCE\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"SOURCE_CAPTURE\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"SORTER\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"REST_SERVER\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"VALIDATOR_EXT\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"TARGET_APPLY\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"TASK_MANAGER\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"TABLES_MANAGER\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"METADATA_MANAGER\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"FILE_FACTORY\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"COMMON\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"ADDONS\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"DATA_STRUCTURE\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"COMMUNICATION\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"FILE_TRANSFER\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"}]},\"ControlTablesSettings\":{\"historyTimeslotInMinutes\":5,\"ControlSchema\":\"\",\"HistoryTimeslotInMinutes\":5,\"HistoryTableEnabled\":false,\"SuspendedTablesTableEnabled\":false,\"StatusTableEnabled\":false},\"StreamBufferSettings\":{\"StreamBufferCount\":3,\"StreamBufferSizeInMB\":8,\"CtrlStreamBufferSizeInMB\":5},\"ChangeProcessingDdlHandlingPolicy\":{\"HandleSourceTableDropped\":true,\"HandleSourceTableTruncated\":true,\"HandleSourceTableAltered\":true},\"ErrorBehavior\":{\"DataErrorPolicy\":\"LOG_ERROR\",\"DataTruncationErrorPolicy\":\"LOG_ERROR\",\"DataErrorEscalationPolicy\":\"SUSPEND_TABLE\",\"DataErrorEscalationCount\":0,\"TableErrorPolicy\":\"SUSPEND_TABLE\",\"TableErrorEscalationPolicy\":\"STOP_TASK\",\"TableErrorEscalationCount\":0,\"RecoverableErrorCount\":-1,\"RecoverableErrorInterval\":5,\"RecoverableErrorThrottling\":true,\"RecoverableErrorThrottlingMax\":1800,\"RecoverableErrorStopRetryAfterThrottlingMax\":false,\"ApplyErrorDeletePolicy\":\"IGNORE_RECORD\",\"ApplyErrorInsertPolicy\":\"LOG_ERROR\",\"ApplyErrorUpdatePolicy\":\"LOG_ERROR\",\"ApplyErrorEscalationPolicy\":\"LOG_ERROR\",\"ApplyErrorEscalationCount\":0,\"ApplyErrorFailOnTruncationDdl\":false,\"FullLoadIgnoreConflicts\":true,\"FailOnTransactionConsistencyBreached\":false,\"FailOnNoTablesCaptured\":false},\"ChangeProcessingTuning\":{\"BatchApplyPreserveTransaction\":true,\"BatchApplyTimeoutMin\":1,\"BatchApplyTimeoutMax\":30,\"BatchApplyMemoryLimit\":500,\"BatchSplitSize\":0,\"MinTransactionSize\":1000,\"CommitTimeout\":1,\"MemoryLimitTotal\":1024,\"MemoryKeepTime\":60,\"StatementCacheSize\":50},\"PostProcessingRules\":null,\"CharacterSetSettings\":null,\"LoopbackPreventionSettings\":null,\"BeforeImageSettings\":null}"
+  CDCTask:
+    Type: AWS::DMS::ReplicationTask
+    Properties:
+      ReplicationTaskIdentifier: cdctask
+      SourceEndpointArn: !Ref DMSEndpointSource
+      TargetEndpointArn: !Ref CDCEndpointTarget
+      ReplicationInstanceArn: !Ref DMSReplicationInstance
+      MigrationType: cdc
+      TableMappings: "{\"rules\":[{\"rule-type\":\"selection\",\"rule-id\":\"1\",\"rule-name\":\"1\",\"object-locator\":{\"schema-name\":\"dms_sample\",\"table-name\":\"%\"},\"rule-action\":\"include\",\"filters\":[]}]}"
+      ReplicationTaskSettings: "{\"TargetMetadata\":{\"TargetSchema\":\"\",\"SupportLobs\":true,\"FullLobMode\":false,\"LobChunkSize\":0,\"LimitedSizeLobMode\":true,\"LobMaxSize\":32,\"InlineLobMaxSize\":0,\"LoadMaxFileSize\":0,\"ParallelLoadThreads\":0,\"ParallelLoadBufferSize\":0,\"BatchApplyEnabled\":false,\"TaskRecoveryTableEnabled\":false,\"ParallelLoadQueuesPerThread\":0,\"ParallelApplyThreads\":0,\"ParallelApplyBufferSize\":0,\"ParallelApplyQueuesPerThread\":0},\"FullLoadSettings\":{\"TargetTablePrepMode\":\"DROP_AND_CREATE\",\"CreatePkAfterFullLoad\":false,\"StopTaskCachedChangesApplied\":false,\"StopTaskCachedChangesNotApplied\":false,\"MaxFullLoadSubTasks\":8,\"TransactionConsistencyTimeout\":600,\"CommitRate\":10000},\"Logging\":{\"EnableLogging\":false,\"LogComponents\":[{\"Id\":\"TRANSFORMATION\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"SOURCE_UNLOAD\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"IO\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"TARGET_LOAD\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"PERFORMANCE\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"SOURCE_CAPTURE\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"SORTER\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"REST_SERVER\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"VALIDATOR_EXT\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"TARGET_APPLY\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"TASK_MANAGER\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"TABLES_MANAGER\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"METADATA_MANAGER\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"FILE_FACTORY\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"COMMON\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"ADDONS\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"DATA_STRUCTURE\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"COMMUNICATION\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"},{\"Id\":\"FILE_TRANSFER\",\"Severity\":\"LOGGER_SEVERITY_DEFAULT\"}],\"CloudWatchLogGroup\":null,\"CloudWatchLogStream\":null},\"ControlTablesSettings\":{\"historyTimeslotInMinutes\":5,\"ControlSchema\":\"\",\"HistoryTimeslotInMinutes\":5,\"HistoryTableEnabled\":false,\"SuspendedTablesTableEnabled\":false,\"StatusTableEnabled\":false},\"StreamBufferSettings\":{\"StreamBufferCount\":3,\"StreamBufferSizeInMB\":8,\"CtrlStreamBufferSizeInMB\":5},\"ChangeProcessingDdlHandlingPolicy\":{\"HandleSourceTableDropped\":true,\"HandleSourceTableTruncated\":true,\"HandleSourceTableAltered\":true},\"ErrorBehavior\":{\"DataErrorPolicy\":\"LOG_ERROR\",\"DataTruncationErrorPolicy\":\"LOG_ERROR\",\"DataErrorEscalationPolicy\":\"SUSPEND_TABLE\",\"DataErrorEscalationCount\":0,\"TableErrorPolicy\":\"SUSPEND_TABLE\",\"TableErrorEscalationPolicy\":\"STOP_TASK\",\"TableErrorEscalationCount\":0,\"RecoverableErrorCount\":-1,\"RecoverableErrorInterval\":5,\"RecoverableErrorThrottling\":true,\"RecoverableErrorThrottlingMax\":1800,\"RecoverableErrorStopRetryAfterThrottlingMax\":false,\"ApplyErrorDeletePolicy\":\"IGNORE_RECORD\",\"ApplyErrorInsertPolicy\":\"LOG_ERROR\",\"ApplyErrorUpdatePolicy\":\"LOG_ERROR\",\"ApplyErrorEscalationPolicy\":\"LOG_ERROR\",\"ApplyErrorEscalationCount\":0,\"ApplyErrorFailOnTruncationDdl\":false,\"FullLoadIgnoreConflicts\":true,\"FailOnTransactionConsistencyBreached\":false,\"FailOnNoTablesCaptured\":false},\"ChangeProcessingTuning\":{\"BatchApplyPreserveTransaction\":true,\"BatchApplyTimeoutMin\":1,\"BatchApplyTimeoutMax\":30,\"BatchApplyMemoryLimit\":500,\"BatchSplitSize\":0,\"MinTransactionSize\":1000,\"CommitTimeout\":1,\"MemoryLimitTotal\":1024,\"MemoryKeepTime\":60,\"StatementCacheSize\":50},\"PostProcessingRules\":null,\"CharacterSetSettings\":null,\"LoopbackPreventionSettings\":null,\"BeforeImageSettings\":null}"
+  WorkgroupManagerUserPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Policy for providing only manager access to workgroup manager user for WorkgroupA and WorkgroupB
+      Path: /
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Action:
+              - athena:ListWorkGroups
+            Resource: "*"
+          -
+            Effect: Allow
+            Action:
+              - s3:ListBucketMultipartUploads
+              - s3:CreateBucket
+              - s3:ListBucket
+              - s3:ListMultipartUploadParts
+              - s3:PutObject
+              - s3:GetObject
+              - s3:GetObjectAcl
+              - s3:GetBucketLocation
+            Resource:
+              - !Sub arn:aws:s3:::${S3BucketWorkgroupA}
+              - !Sub arn:aws:s3:::${S3BucketWorkgroupA}/*
+              - !Sub arn:aws:s3:::${S3BucketWorkgroupB}
+              - !Sub arn:aws:s3:::${S3BucketWorkgroupB}/*
+              - !Sub arn:aws:s3:::${DMSLabS3Bucket}
+              - !Sub arn:aws:s3:::${DMSLabS3Bucket}/*
+              - !Sub arn:aws:athena:${AWS::Region}:${AWS::AccountId}:workgroup/workgroupA
+              - !Sub arn:aws:athena:${AWS::Region}:${AWS::AccountId}:workgroup/workgroupB
+          -
+            Effect: Allow
+            Action:
+              - athena:DeleteWorkGroup
+              - athena:UpdateWorkGroup
+              - athena:GetWorkGroup
+              - athena:CreateWorkGroup
+              - athena:GetExecutionEngine
+              - athena:GetExecutionEngines
+              - athena:GetNamespace
+              - athena:GetCatalogs
+              - athena:GetNamespaces
+              - athena:GetTables
+              - athena:GetTable
+            Resource:
+              - !Sub arn:aws:athena:${AWS::Region}:${AWS::AccountId}:workgroup/workgroupA
+              - !Sub arn:aws:athena:${AWS::Region}:${AWS::AccountId}:workgroup/workgroupB
+  BusinessAnalystUser:
+    Type: AWS::IAM::User
+    Properties:
+      ManagedPolicyArns:
+        - !Ref BusinessAnalystUserPolicy
+      LoginProfile:
+        Password: Master123!
+  WorkgroupManagerUser:
+    Type: AWS::IAM::User
+    Properties:
+      ManagedPolicyArns:
+        - !Ref WorkgroupManagerUserPolicy
+      LoginProfile:
+        Password: Master123!
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: LambdaRolePolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: s3:DeleteObject
+                Resource:
+                  - !Sub arn:aws:s3:::${DMSLabS3Bucket}/*
+                  - !Sub arn:aws:s3:::${S3BucketWorkgroupA}/*
+                  - !Sub arn:aws:s3:::${S3BucketWorkgroupB}/*
+              - Effect: Allow
+                Action: s3:ListBucket
+                Resource:
+                  - !Sub arn:aws:s3:::${DMSLabS3Bucket}
+                  - !Sub arn:aws:s3:::${S3BucketWorkgroupA}
+                  - !Sub arn:aws:s3:::${S3BucketWorkgroupB}
+              - Effect: Allow
+                Action: logs:CreateLogGroup
+                Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:*
+  S3BucketHandler:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Role: !GetAtt LambdaRole.Arn
+      Code:
+        ZipFile: |
+          import os
+          import json
+          import cfnresponse
+          import boto3
+          from botocore.exceptions import ClientError
+
+          s3 = boto3.resource('s3')
+
+
+          def handler(event, context):
+              print("Received event: %s" % json.dumps(event))
+              s3_bucket = s3.Bucket(event['ResourceProperties']['Bucket'])
+
+              try:
+                  if event['RequestType'] == 'Create' or event['RequestType'] == 'Update':
+                      result = cfnresponse.SUCCESS
+                  elif event['RequestType'] == 'Delete':
+                      s3_bucket.objects.delete()
+                      result = cfnresponse.SUCCESS
+              except ClientError as e:
+                  print('Error: %s', e)
+                  result = cfnresponse.FAILED
+
+              cfnresponse.send(event, context, result, {})
+
+      Runtime: python3.8
+      Timeout: 300
+
+  EmptyDMSLabS3Bucket:
+    Type: "Custom::EmptyS3Bucket"
+    Properties:
+      ServiceToken: !GetAtt S3BucketHandler.Arn
+      Bucket: !Ref DMSLabS3Bucket
+
+  EmptyWorkgroupAS3Bucket:
+    Type: "Custom::EmptyS3Bucket"
+    Properties:
+      ServiceToken: !GetAtt S3BucketHandler.Arn
+      Bucket: !Ref S3BucketWorkgroupA
+
+  EmptyWorkgroupBS3Bucket:
+    Type: "Custom::EmptyS3Bucket"
+    Properties:
+      ServiceToken: !GetAtt S3BucketHandler.Arn
+      Bucket: !Ref S3BucketWorkgroupB
+
+  ReplicationTaskLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: ReplicationTaskLambdaRolePolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: dms:StopReplicationTask
+                Resource: !Sub arn:aws:dms:${AWS::Region}:${AWS::AccountId}:task:*
+              - Effect: Allow
+                Action: dms:DescribeReplicationTasks
+                Resource: "*"
+              - Effect: Allow
+                Action: logs:CreateLogGroup
+                Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:*
+
+  ReplicationTaskHandler:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Role: !GetAtt ReplicationTaskLambdaRole.Arn
+      Code:
+        ZipFile: |
+          import os
+          import json
+          import cfnresponse
+          import boto3
+          from botocore.exceptions import ClientError
+
+          dms = boto3.client('dms')
+
+
+          def handler(event, context):
+              print("Received event: %s" % json.dumps(event))
+
+              try:
+                  if event['RequestType'] == 'Create' or event['RequestType'] == 'Update':
+                      result = cfnresponse.SUCCESS
+                  elif event['RequestType'] == 'Delete':
+                      dms.stop_replication_task(ReplicationTaskArn=event['ResourceProperties']['TaskArn'])
+                      waiter = dms.get_waiter('replication_task_stopped')
+                      waiter.wait(Filters=[{'Name': 'replication-task-arn',
+                                            'Values': [event['ResourceProperties']['TaskArn']]}
+                                          ])
+                      result = cfnresponse.SUCCESS
+              except ClientError as e:
+                  print('Error: %s', e)
+                  result = cfnresponse.FAILED
+
+              cfnresponse.send(event, context, result, {})
+
+      Runtime: python3.8
+      Timeout: 900
+
+  StopCdcReplicationTask:
+    Type: "Custom::StopCdcReplicationTask"
+    Properties:
+      ServiceToken: !GetAtt ReplicationTaskHandler.Arn
+      TaskArn: !Ref CDCTask
