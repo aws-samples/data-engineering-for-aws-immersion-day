@@ -10,7 +10,7 @@ Parameters:
     Type: String
   SourceKey:
     Description: S3 Key which contains the source object
-    Default: dmslambda.zip
+    Default: dmslambda_v1.zip
     Type: String
 Resources:
   DMSLabCFNS3Bucket:
@@ -208,10 +208,10 @@ Resources:
               git clone https://github.com/aws-samples/aws-database-migration-samples.git
           fi
           cd aws-database-migration-samples/PostgreSQL/sampledb/v1/
-          export PGPASSWORD=master123
+          export PGPASSWORD=admin123
           export ENDPOINT=${RDSDMSLabDB.Endpoint.Address}
 
-          nohup psql --host=${!ENDPOINT} --port=5432 --dbname=sportstickets --username=master -f install-postgresql.sql
+          nohup psql --host=${!ENDPOINT} --port=5432 --dbname=sportstickets --username=adminuser -f install-postgresql.sql
       Monitoring: false
       Tags:
         -
@@ -243,8 +243,8 @@ Resources:
       PubliclyAccessible: true
       StorageType: gp2
       BackupRetentionPeriod: 7
-      MasterUsername: master
-      MasterUserPassword: master123
+      MasterUsername: adminuser
+      MasterUserPassword: admin123
       PreferredBackupWindow: 04:00-04:30
       PreferredMaintenanceWindow: sun:05:20-sun:05:50
       DBName: sportstickets

@@ -548,8 +548,8 @@ Resources:
       EndpointIdentifier: rds-source-endpoint
       EndpointType: source
       EngineName: postgres
-      Username: master
-      Password: master123
+      Username: adminuser
+      Password: admin123
       ServerName: !Ref ServerName
       Port: 5432
       DatabaseName: sportstickets
@@ -813,14 +813,14 @@ Resources:
       ManagedPolicyArns:
         - !Ref BusinessAnalystUserPolicy
       LoginProfile:
-        Password: Master123!
+        Password: Admin123!
   WorkgroupManagerUser:
     Type: AWS::IAM::User
     Properties:
       ManagedPolicyArns:
         - !Ref WorkgroupManagerUserPolicy
       LoginProfile:
-        Password: Master123!
+        Password: Admin123!
   LambdaRole:
     Type: AWS::IAM::Role
     Properties:
