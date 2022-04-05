@@ -267,6 +267,7 @@ Resources:
           AssociatePublicIpAddress: true
   RDSDMSLabDB:
     Type: AWS::RDS::DBInstance
+    DependsOn: InternetRoute
     Properties:
       AllocatedStorage: '500'
       AllowMajorVersionUpgrade: false
