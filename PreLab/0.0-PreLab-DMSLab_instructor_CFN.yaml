@@ -249,7 +249,7 @@ Resources:
       PreferredMaintenanceWindow: sun:05:20-sun:05:50
       DBName: sportstickets
       Engine: postgres
-      EngineVersion: '11.5'
+      EngineVersion: '11.14'
       LicenseModel: postgresql-license
       DBSubnetGroupName: !Ref DMSLabDefaultDBSubnet
       DBParameterGroupName: !Ref DMSLabDBPG
