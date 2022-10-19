@@ -297,6 +297,24 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
         - arn:aws:iam::aws:policy/AmazonKinesisFullAccess
+      Policies:
+        -
+          PolicyName: DEBucketAccess
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              -
+                Sid: ListDEBucket
+                Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: arn:aws:s3:::aws-dataengineering-day.workshop.aws
+              -
+                Sid: GetObjectFromDEBucket
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource: arn:aws:s3:::aws-dataengineering-day.workshop.aws/*  
   DMSCloudWatchLogRole:
     Type: AWS::IAM::Role
     Condition: DMSCWRoleExist
