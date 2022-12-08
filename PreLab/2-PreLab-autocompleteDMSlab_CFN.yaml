@@ -394,6 +394,25 @@ Resources:
       Path: /service-role/
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
+        - arn:aws:iam::aws:policy/AmazonKinesisFullAccess
+      Policies:
+        -
+          PolicyName: DEBucketAccess
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              -
+                Sid: ListDEBucket
+                Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: arn:aws:s3:::aws-dataengineering-day.workshop.aws
+              -
+                Sid: GetObjectFromDEBucket
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource: arn:aws:s3:::aws-dataengineering-day.workshop.aws/*
   DMSCloudWatchLogRole:
     Type: AWS::IAM::Role
     Condition: DMSCWRoleExist
@@ -528,6 +547,7 @@ Resources:
         - !Ref dmslabstudentsubnet1
         - !Ref dmslabstudentsubnet2
   DMSReplicationInstance:
+    DependsOn: gw1
     Type: AWS::DMS::ReplicationInstance
     Properties:
       ReplicationInstanceIdentifier: dmsreplication-instance
@@ -539,7 +559,7 @@ Resources:
         !Ref DMSReplicationSubnetGroup
       PreferredMaintenanceWindow: sat:05:40-sat:06:10
       MultiAZ: false
-      EngineVersion: 3.4.4
+      EngineVersion: 3.4.7
       AutoMinorVersionUpgrade: true
       PubliclyAccessible: true
   DMSEndpointSource:
