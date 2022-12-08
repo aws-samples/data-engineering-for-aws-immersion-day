@@ -394,7 +394,6 @@ Resources:
       Path: /service-role/
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
-        - arn:aws:iam::aws:policy/AmazonKinesisFullAccess
       Policies:
         -
           PolicyName: DEBucketAccess
@@ -547,6 +546,7 @@ Resources:
         - !Ref dmslabstudentsubnet1
         - !Ref dmslabstudentsubnet2
   DMSReplicationInstance:
+    DependsOn: gw1
     Type: AWS::DMS::ReplicationInstance
     Properties:
       ReplicationInstanceIdentifier: dmsreplication-instance
