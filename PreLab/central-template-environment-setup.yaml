@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 
-Description: Master template for Data Engineering Immersion Day
+Description: Central template for Data Engineering Immersion Day
 
 # Note - if running this manually in Isengard, you can specify arbitrary values
 # for all of the parameters *except* the module Id and version which are needed
@@ -39,7 +39,7 @@ Parameters:
     Type: String
   SourceKey:
     Description: S3 Key which contains the source object
-    Default: dmslambda.zip
+    Default: dmslambda_v1.zip
     Type: String
 Conditions:
   # Used to optionally exclude the subscription of Lambda functions (or other
@@ -242,10 +242,10 @@ Resources:
               git clone https://github.com/aws-samples/aws-database-migration-samples.git
           fi
           cd aws-database-migration-samples/PostgreSQL/sampledb/v1/
-          export PGPASSWORD=master123
+          export PGPASSWORD=admin123
           export ENDPOINT=${RDSDMSLabDB.Endpoint.Address}
 
-          nohup psql --host=${!ENDPOINT} --port=5432 --dbname=sportstickets --username=master -f install-postgresql.sql
+          nohup psql --host=${!ENDPOINT} --port=5432 --dbname=sportstickets --username=adminuser -f install-postgresql.sql
       Monitoring: false
       Tags:
         -
@@ -278,8 +278,8 @@ Resources:
       PubliclyAccessible: true
       StorageType: gp2
       BackupRetentionPeriod: 7
-      MasterUsername: master
-      MasterUserPassword: master123
+      MasterUsername: adminuser
+      MasterUserPassword: admin123
       PreferredBackupWindow: 04:00-04:30
       PreferredMaintenanceWindow: sun:05:20-sun:05:50
       DBName: sportstickets
@@ -518,8 +518,102 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       Code:
-        S3Bucket: !Ref EEAssetsBucket
-        S3Key: !Sub "modules/${EEModuleId}/v${EEModuleVersion}/lambda/handle-master-lifecycle-events.zip"
+        ZipFile: |
+          import json
+          import boto3
+          import os
+          import traceback
+          client = boto3.client('lambda')
+
+          send_team_output_to_event_engine_function = os.environ['SEND_TEAM_OUTPUT_TO_EVENT_ENGINE_FUNCTION']
+
+          print('Loading function')
+
+          def handler(event, context):
+
+              try:
+                  print(event)
+
+                  message = json.loads(event['Records'][0]['Sns']['Message'])
+                  event_type = message['event']
+                  event_id = message['game-id']
+                  module_id = message['module-id']
+                  team_id = message['team-id']
+                  cfn_outputs = {}
+
+                  if 'cfn-outputs' in message:
+                      cfn_outputs = message['cfn-outputs']
+
+                  if module_id == '3fccddd609114925bf8094186f402676':
+                      cfn_outputs['DBEndpoint'] = os.environ['DB_ENDPOINT']
+                      cfn_outputs['DBUsername'] = os.environ['DB_USER']
+                      cfn_outputs['DBPassword'] = os.environ['DB_PASSWORD']
+                      cfn_outputs['DBPort'] = os.environ['DB_PORT']
+                      cfn_outputs['DBName'] = os.environ['DB_NAME']
+
+                  if event_type == 'MODULE_DEPLOYING':
+                      print('Module {} for event {} for team {} is deploying...'
+                              .format(module_id, event_id, team_id)
+                      )
+                      print('Nothing to do!')
+                  elif event_type == 'MODULE_DEPLOYED':
+                      print('Module {} for event {} for team {} is deployed...'
+                              .format(module_id, event_id, team_id)
+                      )
+                      if (len(cfn_outputs) == 0):
+                          print('Team module has no CloudFormation outputs to send to EE')
+                      else:
+                          send_initial_team_outputs_to_ee(team_id, cfn_outputs)
+                  if event_type == 'MODULE_UNDEPLOYING':
+                      print('Module {} for event {} for team {} is undeploying...'
+                              .format(module_id, event_id, team_id)
+                      )
+                      print('Nothing to do!')
+                  if event_type == 'MODULE_UNDEPLOYED':
+                      print('Module {} for event {} for team {} is undeployed...'
+                              .format(module_id, event_id, team_id)
+                      )
+                      print('Nothing to do!')
+                  else:
+                      print('Module {} for event {} for team {} has unhandled event {}...'
+                              .format(module_id, event_id, team_id, event_type)
+                      )
+                  return {
+                      "status": 200,
+                      "message": "Done!"
+                  }
+              except Exception as e:
+                  msg = "Unexpected error: {}".format(e)
+                  print(msg)
+                  traceback.print_exc()
+                  return {
+                      "status": 500,
+                      "message": msg
+                  }
+
+
+          def send_initial_team_outputs_to_ee(team_id, cfn_outputs):
+
+              print ('Sending team CloudFormation Outputs to Event Engine...')
+              for key, value in cfn_outputs.items():
+                  payload = {
+                      "team_id": team_id,
+                      "output_key": key,
+                      "output_value": value
+                  }
+                  print('Invoking Lambda {} with payload:\n'.format(send_team_output_to_event_engine_function)
+                      + json.dumps(payload, indent=2)
+                  )
+                  response = client.invoke(
+                      FunctionName=send_team_output_to_event_engine_function,
+                      InvocationType='RequestResponse',
+                      Payload=json.dumps(payload),
+                  )
+                  response_payload = json.loads(response['Payload'].read())
+                  print('Invoke response status {}:\n{}'.format(
+                      response['StatusCode'],
+                      json.dumps(response_payload,indent=2)
+                  ))
       Description: Function receives lifecycle events from event engine and handles them as needed.
       Environment:
         Variables:
@@ -531,8 +625,8 @@ Resources:
           SEND_TEAM_OUTPUT_TO_EVENT_ENGINE_FUNCTION: !Ref SendTeamOutputToEventEngineFunction
           DB_ENDPOINT: !GetAtt RDSDMSLabDB.Endpoint.Address
           DB_PORT: 5432
-          DB_USER: master
-          DB_PASSWORD: master123
+          DB_USER: adminuser
+          DB_PASSWORD: admin123
           DB_NAME: sportstickets
       Handler: index.handler
       Role: !GetAtt HandleMasterLifecycleEventsRole.Arn
@@ -630,3 +724,4 @@ Outputs:
   RDSInstanceEndpoint:
     Description: RDS database server name
     Value: !GetAtt RDSDMSLabDB.Endpoint.Address
+
