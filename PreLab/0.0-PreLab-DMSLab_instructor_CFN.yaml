@@ -371,7 +371,7 @@ Resources:
       FunctionName: GenerateCDCData
       Handler: index.handler
       MemorySize: 128
-      Runtime: nodejs12.x
+      Runtime: nodejs18.x
       Timeout: 300
       Environment:
         Variables:
