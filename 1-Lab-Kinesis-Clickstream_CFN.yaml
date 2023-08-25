@@ -249,7 +249,7 @@ Resources:
           def handler(event, context):
             if event['RequestType'] != 'Delete':
               s3 = boto3.client('s3')
-              rcf_example_source = urlopen('https://github.com/duttaabhijit06/amazon-kinesis-data-analytics-examples/archive/${Release}.zip')
+              rcf_example_source = urlopen('https://github.com/duttaabh/data-engineering-for-aws-immersion-day/archive/${Release}.zip')
 
               s3.put_object(Bucket='${ArtifactBucket}',Key='sources/amazon-kinesis-analytics-rcf-example.zip',Body=rcf_example_source.read())
 
@@ -367,65 +367,6 @@ Resources:
     Properties:
       Name: !Sub 'anomalydetectionstream'
       ShardCount: 1
-
-  RCFAnomalyDetectionApplicationLogGroup:
-    Type: AWS::Logs::LogGroup
-    Properties:
-      LogGroupName: !Sub ${AWS::StackName}-RCFAnomalyDetectionApplication-LogGroup
-
-  RCFAnomalyDetectionApplicationLogStream:
-    Type: AWS::Logs::LogStream
-    Properties:
-      LogGroupName: !Ref RCFAnomalyDetectionApplicationLogGroup
-      LogStreamName: !Sub ${AWS::StackName}-RCFAnomalyDetectionApplication-LogStream
-
-  RCFAnomalyDetectionApplication:
-    Type: 'AWS::KinesisAnalyticsV2::Application'
-    Properties:
-      ApplicationName: !Sub '${AWS::StackName}-RCFAnomalyDetectionApplication'
-      ApplicationDescription: >-
-        This application computes anomaly score via RandomCutForest algorithm
-      RuntimeEnvironment: FLINK-1_15
-      ServiceExecutionRole: !GetAtt ServiceExecutionRole.Arn
-      ApplicationConfiguration:
-        ApplicationCodeConfiguration:
-          CodeContent:
-            S3ContentLocation:
-              BucketARN: !GetAtt ArtifactBucket.Arn
-              FileKey: >-
-                flink-random-cut-forest-example-1.0.jar
-          CodeContentType: ZIPFILE
-        FlinkApplicationConfiguration:
-          MonitoringConfiguration:
-            ConfigurationType: CUSTOM
-            LogLevel: INFO
-            MetricsLevel: APPLICATION
-        EnvironmentProperties:
-          PropertyGroups:
-            - PropertyGroupId: RcfExampleEnvironment
-              PropertyMap:
-                region: !Sub ${AWS::Region}
-                initialPosition: !Sub 'TRIM_HORIZON'
-                inputStreamName: !Ref CtrStream
-                outputStreamName: !Ref DestinationStream
-    DependsOn: BuildCompleteWaitCondition
-  
-  RCFAnomalyDetectionApplicationCloudWatchLoggingOption:
-    Type: AWS::KinesisAnalyticsV2::ApplicationCloudWatchLoggingOption
-    Properties:
-      ApplicationName: !Ref RCFAnomalyDetectionApplication
-      CloudWatchLoggingOption:
-        LogStreamARN: 
-          Fn::Join:
-          - ":"
-          - 
-            - arn:aws:logs
-            - Ref: AWS::Region
-            - Ref: AWS::AccountId
-            - log-group
-            - Ref: RCFAnomalyDetectionApplicationLogGroup
-            - log-stream
-            - Ref: RCFAnomalyDetectionApplicationLogStream
 
   ServiceExecutionRole:
     Type: 'AWS::IAM::Role'
@@ -615,11 +556,6 @@ Resources:
                   - lambda:GetFunctionConfiguration
                 Resource:
                   - !Sub ${RCFBeconAnomalyResponse.Arn}:$LATEST
-  # EmptyArtifactS3Bucket:
-  #   Type: "Custom::EmptyS3Bucket"
-  #   Properties:
-  #     ServiceToken: !GetAtt S3BucketHandler.Arn
-  #     Bucket: !Ref ArtifactBucket
 
 Outputs:
   ArtifactBucketName:
