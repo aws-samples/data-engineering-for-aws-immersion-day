@@ -6,6 +6,11 @@ Parameters:
     Type: String
     Default: 1.15.4
     AllowedPattern: \d\.\d\d\.\d
+  GitOrganizationName:
+    Description: Git Repository Location
+    Type: String
+    Default: aws-samples
+    AllowedPattern: "^(?=\\s*\\S).*$"
   Release:
     Description: Github branch or release to be used for the consumer application
     Type: String
@@ -24,8 +29,8 @@ Metadata:
           default: "Kinesis Flink Pre Lab set up"
         Parameters:
           - "FlinkVersion"
+          - "GitOrganizationName"
           - "Release"
-          - "email"
           - "GlueDatabaseName"
 Resources:   
   ArtifactBucket:
@@ -187,14 +192,14 @@ Resources:
           phases:
             build:
               commands:
-                - 'cd amazon-kinesis-data-analytics-examples-* || :'
+                - 'cd data-engineering-for-aws-immersion-day-* || :'
                 - 'cd AnomalyDetection/RandomCutForest || :'
                 - mvn clean package --B -Dflink.version=${FlinkVersion}
 
           artifacts:
             files:
               - target/flink-random-cut-forest-example-*.jar
-              - amazon-kinesis-data-analytics-examples-*/AnomalyDetection/RandomCutForest/target/flink-random-cut-forest-example-*.jar
+              - data-engineering-for-aws-immersion-day-*/AnomalyDetection/RandomCutForest/target/flink-random-cut-forest-example-*.jar
             discard-paths: yes
       TimeoutInMinutes: 5
 
@@ -249,7 +254,7 @@ Resources:
           def handler(event, context):
             if event['RequestType'] != 'Delete':
               s3 = boto3.client('s3')
-              rcf_example_source = urlopen('https://github.com/duttaabh/data-engineering-for-aws-immersion-day/archive/${Release}.zip')
+              rcf_example_source = urlopen('https://github.com/${GitOrganizationName}/data-engineering-for-aws-immersion-day/archive/${Release}.zip')
 
               s3.put_object(Bucket='${ArtifactBucket}',Key='sources/amazon-kinesis-analytics-rcf-example.zip',Body=rcf_example_source.read())
 
@@ -561,9 +566,6 @@ Outputs:
   ArtifactBucketName:
     Description: This the bucket name of where your the Kinesis Anomaly detection application data will be stored at
     Value: !Ref ArtifactBucket
-  RCFAnomalyDetectionApplication:
-    Description: Name of the Kinesis Anomaly detection application
-    Value: !Ref RCFAnomalyDetectionApplication
   RealtimeApplicationNotebook:
     Description: Name of the Kinesis realtime analysis notebook application
     Value: !Ref RealtimeApplicationNotebook
