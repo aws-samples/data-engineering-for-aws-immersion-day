@@ -1,0 +1,633 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Supporting elements for the Kinesis Analytics click stream lab with Flink
+Parameters:
+  FlinkVersion:
+    Description: Flink version to build
+    Type: String
+    Default: 1.15.4
+    AllowedPattern: \d\.\d\d\.\d
+  Release:
+    Description: Github branch or release to be used for the consumer application
+    Type: String
+    Default: master
+    AllowedPattern: "^(?=\\s*\\S).*$"
+  GlueDatabaseName:
+    Description: Glue Database Name to associate with KDA Notebook
+    Type: String
+    Default: prelab_kda_db
+    AllowedPattern: "^(?=\\s*\\S).*$"
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label:
+          default: "Kinesis Flink Pre Lab set up"
+        Parameters:
+          - "FlinkVersion"
+          - "Release"
+          - "email"
+          - "GlueDatabaseName"
+Resources:   
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        -
+          PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - codepipeline:PutJobSuccessResult
+                  - codepipeline:PutJobFailureResult
+              - Resource:
+                  - arn:aws:logs:*:*:log-group:/aws/lambda/*
+                  - arn:aws:logs:*:*:log-group:/aws/lambda/*:log-stream:*
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+              - Resource:
+                  - !Sub arn:aws:s3:::${ArtifactBucket}
+                  - !Sub arn:aws:s3:::${ArtifactBucket}/*
+                Effect: Allow
+                Action:
+                  - s3:*
+              - Effect: Allow
+                Action:
+                  - 'kinesis:*'
+                Resource:
+                  - !GetAtt CtrStream.Arn
+                  - !GetAtt DestinationStream.Arn
+                  - !GetAtt AnomalyDetectionStream.Arn
+              - Effect: Allow
+                Action:
+                  - 'logs:*'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 's3:ListBucket'
+                  - 's3:GetObject'
+                Resource: !Sub
+                  - 'arn:aws:s3:::${ArtifactBucketPlaceholder}/*'
+                  - ArtifactBucketPlaceholder: !Ref ArtifactBucket
+              - Effect: Allow
+                Action:
+                  - 'sns:*'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 'glue:*'
+                Resource: '*'
+  BuildPipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: RcfExampleSourceAction
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: "1"
+                Provider: S3
+              OutputArtifacts:
+                - Name: RcfExampleSource
+              Configuration:
+                S3Bucket: !Ref ArtifactBucket
+                S3ObjectKey: sources/amazon-kinesis-analytics-rcf-example.zip
+              RunOrder: 1
+        - Name: BuildRcfExample
+          Actions: 
+            - Name: BuildRcfExample
+              InputArtifacts:
+                - Name: RcfExampleSource
+              OutputArtifacts:
+                - Name: BuildRcfExampleOutput
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: "1"
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Ref RcfExampleBuildProject
+                PrimarySource: RcfExampleSource
+              RunOrder: 1
+        - Name: Copy
+          Actions:
+            - Name: CopyRcfExample
+              InputArtifacts:
+                - Name: BuildRcfExampleOutput
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: "1"
+                Provider: S3
+              Configuration:
+                BucketName: !Ref ArtifactBucket
+                Extract: true
+              RunOrder: 1
+            - Name: NotifyCloudformation
+              ActionTypeId:
+                Category: Invoke
+                Owner: AWS
+                Version: "1"
+                Provider: Lambda
+              Configuration:
+                FunctionName: !Ref NotifyWaitConditionLambdaFunction
+              RunOrder: 2
+      ArtifactStore:
+        Type: S3
+        Location: !Ref ArtifactBucket
+
+  BuildCompleteWaitCondition:
+    Type: AWS::CloudFormation::WaitCondition
+    Properties:
+      Count: 1
+      Handle: !Ref BuildCompleteWaitHandle
+      Timeout: "900"
+
+  BuildCompleteWaitHandle:
+    Type: AWS::CloudFormation::WaitConditionHandle
+
+  RcfExampleBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      ServiceRole: !GetAtt CodeBuildServiceRole.Arn
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_LARGE
+        Image: aws/codebuild/java:openjdk-11
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: !Sub |
+          version: 0.2
+
+          phases:
+            build:
+              commands:
+                - 'cd amazon-kinesis-data-analytics-examples-* || :'
+                - 'cd AnomalyDetection/RandomCutForest || :'
+                - mvn clean package --B -Dflink.version=${FlinkVersion}
+
+          artifacts:
+            files:
+              - target/flink-random-cut-forest-example-*.jar
+              - amazon-kinesis-data-analytics-examples-*/AnomalyDetection/RandomCutForest/target/flink-random-cut-forest-example-*.jar
+            discard-paths: yes
+      TimeoutInMinutes: 5
+
+  NotifyWaitConditionLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: !Sub |
+          import json
+          import boto3
+          import urllib.request
+
+          code_pipeline = boto3.client('codepipeline')
+
+          def handler(event, context):
+            job_id = event['CodePipeline.job']['id']
+
+            url = '${BuildCompleteWaitHandle}'
+            headers = { "Content-Type": "" }
+            data = { "Status": "SUCCESS", "Reason": "Compilation Succeeded", "UniqueId": "RcfExampleBuildProject", "Data": "Compilation Succeeded" }
+
+            try:
+              req = urllib.request.Request(url, headers=headers, data=bytes(json.dumps(data), encoding="utf-8"), method='PUT')
+              response = urllib.request.urlopen(req)
+
+              code_pipeline.put_job_success_result(jobId=job_id)
+            except Exception as e:
+              print("failure: " + str(e))
+              code_pipeline.put_job_failure_result(jobId=job_id, failureDetails={'message': str(e), 'type': 'JobFailed'})
+
+      Runtime: python3.9
+      Timeout: 10
+
+  DownloadSources:
+    Type: Custom::DownloadSources
+    Properties:
+      ServiceToken: !GetAtt DownloadSourcesFunction.Arn
+
+  DownloadSourcesFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Code:
+        ZipFile: !Sub |
+          import boto3
+          import cfnresponse
+          from urllib.request import urlopen
+
+          def handler(event, context):
+            if event['RequestType'] != 'Delete':
+              s3 = boto3.client('s3')
+              rcf_example_source = urlopen('https://github.com/duttaabhijit06/amazon-kinesis-data-analytics-examples/archive/${Release}.zip')
+
+              s3.put_object(Bucket='${ArtifactBucket}',Key='sources/amazon-kinesis-analytics-rcf-example.zip',Body=rcf_example_source.read())
+
+            cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+      Runtime: python3.9
+      Timeout: 60
+
+  CodePipelineServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument: !Sub |
+        {
+            "Statement": [{
+                "Effect": "Allow",
+                "Principal": { "Service": [ "codepipeline.amazonaws.com" ]},
+                "Action": [ "sts:AssumeRole" ]
+            }]
+        }
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Resource:
+                  - !Sub arn:aws:s3:::${ArtifactBucket}
+                  - !Sub arn:aws:s3:::${ArtifactBucket}/*
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:DeleteObject
+                  - s3:ListBucket
+                  - s3:GetObjectVersion
+                  - s3:GetBucketVersioning
+              - Resource:
+                  - !Sub ${RcfExampleBuildProject.Arn}
+                Effect: Allow
+                Action:
+                  - codebuild:StartBuild
+                  - codebuild:BatchGetBuilds
+              - Resource: !Sub ${NotifyWaitConditionLambdaFunction.Arn}
+                Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                  - lambda:InvokeAsync
+
+  CodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument: !Sub |
+        {
+            "Statement": [{
+                "Effect": "Allow",
+                "Principal": { "Service": [ "codebuild.amazonaws.com" ]},
+                "Action": [ "sts:AssumeRole" ]
+            }]
+        }
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Resource:
+                  - arn:aws:logs:*:*:log-group:/aws/codebuild/*
+                  - arn:aws:logs:*:*:log-group:/aws/codebuild/*:log-stream:*
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+              - Resource:
+                  - !Sub arn:aws:s3:::${ArtifactBucket}
+                  - !Sub arn:aws:s3:::${ArtifactBucket}/*
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:GetObjectVersion
+                  - s3:ListBucket
+  
+  TickerStream:
+    Type: 'AWS::Kinesis::Stream'
+    Properties:
+      Name: !Sub 'tickerstream'
+      ShardCount: 1
+  
+  ClickStream:
+    Type: 'AWS::Kinesis::Stream'
+    Properties:
+      Name: !Sub 'clickstream'
+      ShardCount: 1
+
+  ImpressionStream:
+    Type: 'AWS::Kinesis::Stream'
+    Properties:
+      Name: !Sub 'impressionstream'
+      ShardCount: 1
+
+  CtrStream:
+    Type: 'AWS::Kinesis::Stream'
+    Properties:
+      Name: !Sub 'ctrstream'
+      ShardCount: 1
+
+  DestinationStream:
+    Type: 'AWS::Kinesis::Stream'
+    Properties:
+      Name: !Sub 'destinationstream'
+      ShardCount: 1
+
+  AnomalyDetectionStream:
+    Type: 'AWS::Kinesis::Stream'
+    Properties:
+      Name: !Sub 'anomalydetectionstream'
+      ShardCount: 1
+
+  RCFAnomalyDetectionApplicationLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub ${AWS::StackName}-RCFAnomalyDetectionApplication-LogGroup
+
+  RCFAnomalyDetectionApplicationLogStream:
+    Type: AWS::Logs::LogStream
+    Properties:
+      LogGroupName: !Ref RCFAnomalyDetectionApplicationLogGroup
+      LogStreamName: !Sub ${AWS::StackName}-RCFAnomalyDetectionApplication-LogStream
+
+  RCFAnomalyDetectionApplication:
+    Type: 'AWS::KinesisAnalyticsV2::Application'
+    Properties:
+      ApplicationName: !Sub '${AWS::StackName}-RCFAnomalyDetectionApplication'
+      ApplicationDescription: >-
+        This application computes anomaly score via RandomCutForest algorithm
+      RuntimeEnvironment: FLINK-1_15
+      ServiceExecutionRole: !GetAtt ServiceExecutionRole.Arn
+      ApplicationConfiguration:
+        ApplicationCodeConfiguration:
+          CodeContent:
+            S3ContentLocation:
+              BucketARN: !GetAtt ArtifactBucket.Arn
+              FileKey: >-
+                flink-random-cut-forest-example-1.0.jar
+          CodeContentType: ZIPFILE
+        FlinkApplicationConfiguration:
+          MonitoringConfiguration:
+            ConfigurationType: CUSTOM
+            LogLevel: INFO
+            MetricsLevel: APPLICATION
+        EnvironmentProperties:
+          PropertyGroups:
+            - PropertyGroupId: RcfExampleEnvironment
+              PropertyMap:
+                region: !Sub ${AWS::Region}
+                initialPosition: !Sub 'TRIM_HORIZON'
+                inputStreamName: !Ref CtrStream
+                outputStreamName: !Ref DestinationStream
+    DependsOn: BuildCompleteWaitCondition
+  
+  RCFAnomalyDetectionApplicationCloudWatchLoggingOption:
+    Type: AWS::KinesisAnalyticsV2::ApplicationCloudWatchLoggingOption
+    Properties:
+      ApplicationName: !Ref RCFAnomalyDetectionApplication
+      CloudWatchLoggingOption:
+        LogStreamARN: 
+          Fn::Join:
+          - ":"
+          - 
+            - arn:aws:logs
+            - Ref: AWS::Region
+            - Ref: AWS::AccountId
+            - log-group
+            - Ref: RCFAnomalyDetectionApplicationLogGroup
+            - log-stream
+            - Ref: RCFAnomalyDetectionApplicationLogStream
+
+  ServiceExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: kinesisanalytics.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: Open
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'kinesis:*'
+                Resource:
+                  - !GetAtt CtrStream.Arn
+              - Effect: Allow
+                Action:
+                  - 'kinesis:*'
+                  - 'logs:*'
+                Resource:
+                  - !GetAtt DestinationStream.Arn
+              - Effect: Allow
+                Action:
+                  - 'logs:*'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 's3:ListBucket'
+                  - 's3:GetObject'
+                Resource: !Sub
+                  - 'arn:aws:s3:::${ArtifactBucketPlaceholder}/*'
+                  - ArtifactBucketPlaceholder: !Ref ArtifactBucket
+  
+  RealtimeApplicationNotebook:
+    Type: AWS::KinesisAnalyticsV2::Application
+    Properties:
+      ApplicationMode: INTERACTIVE
+      ApplicationName: !Sub '${AWS::StackName}-RealtimeApplicationNotebook'
+      RuntimeEnvironment: ZEPPELIN-FLINK-3_0
+      ServiceExecutionRole: !GetAtt KinesisAnalyticsServiceExecutionRole.Arn
+      ApplicationConfiguration:
+        FlinkApplicationConfiguration:
+          ParallelismConfiguration:
+            Parallelism: 12
+            ConfigurationType: CUSTOM
+        ZeppelinApplicationConfiguration:
+          CatalogConfiguration:
+            GlueDataCatalogConfiguration:
+              DatabaseARN: !Sub "arn:aws:glue:${AWS::Region}:${AWS::AccountId}:database/${GlueDatabase}"
+          CustomArtifactsConfiguration:
+            - ArtifactType: DEPENDENCY_JAR
+              MavenReference:
+                GroupId: org.apache.flink
+                ArtifactId: flink-sql-connector-kinesis
+                Version: 1.15.4
+            - ArtifactType: DEPENDENCY_JAR
+              MavenReference:
+                GroupId: org.apache.flink
+                ArtifactId: flink-connector-kafka
+                Version: 1.15.4
+            - ArtifactType: DEPENDENCY_JAR
+              MavenReference:
+                GroupId: software.amazon.msk
+                ArtifactId: aws-msk-iam-auth
+                Version: 1.1.6
+            - ArtifactType: "UDF"
+              S3ContentLocation:
+                BucketARN: !Sub 'arn:aws:s3:::${ArtifactBucket}'
+                FileKey: 'flink-random-cut-forest-example-1.0.jar'
+    DependsOn: BuildCompleteWaitCondition
+
+  GlueDatabase:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Name: !Ref GlueDatabaseName
+        Description: My glue database
+
+  KinesisAnalyticsServiceExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: kinesisanalytics.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: glue-kinesis-access
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - glue:*
+                  - kinesis:*
+                  - kinesisanalytics:*
+                  - s3:*
+                Resource:
+                  - '*'
+  InboundStreamLambdaFunctionEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties: 
+      BatchSize: 100 
+      Enabled: true
+      EventSourceArn: !GetAtt AnomalyDetectionStream.Arn
+      FunctionName: !GetAtt RCFBeconAnomalyResponse.Arn
+      MaximumBatchingWindowInSeconds: 0
+      StartingPosition: TRIM_HORIZON 
+  RCFBeconAnomalyResponse:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: !Sub |
+          var AWS = require('aws-sdk');
+          var sns = new AWS.SNS( { region: '${AWS::Region}' });
+          var s3 = new AWS.S3();
+
+          exports.handler = function(event, context) {
+            console.log(JSON.stringify(event, null, 3));
+            event.Records.forEach(function(record) {
+              var payload = new Buffer(record.kinesis.data, 'base64').toString('ascii');
+              var rec = JSON.parse(payload);
+              var ctr = rec.ctrpercent;
+              var anomaly_score = rec.anomaly_score;
+              var detail = 'Anomaly detected with a click through rate of ' + ctr + '% and an anomaly score of ' + anomaly_score;
+              var subject = 'Anomaly Detected';
+              var SNSparams = {
+                Message: detail,
+                MessageStructure: 'String',
+                Subject: subject,
+                TopicArn: 'arn:aws:sns:${AWS::Region}:${AWS::AccountId}:ClickStreamEvent2'
+              };
+              sns.publish(SNSparams, function(err, data) {
+                if (err) context.fail(err.stack);
+                else{
+                  var anomaly = [{
+                    'date': Date.now(),
+                    'ctr': ctr,
+                    'anomaly_score': anomaly_score
+                  }]
+                }
+              });
+            });
+          };
+      Description: Click Stream Example Lambda Function
+      FunctionName: RCFBeconAnomalyResponse
+      Handler: index.handler
+      MemorySize: 128
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Runtime: nodejs16.x
+      Timeout: 60
+  RCFKinesisAnalyticsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - kinesisanalytics.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        -
+          PolicyName: firehose
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              -
+                Sid: UseLambdaFunction
+                Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                  - lambda:GetFunctionConfiguration
+                Resource:
+                  - !Sub ${RCFBeconAnomalyResponse.Arn}:$LATEST
+  # EmptyArtifactS3Bucket:
+  #   Type: "Custom::EmptyS3Bucket"
+  #   Properties:
+  #     ServiceToken: !GetAtt S3BucketHandler.Arn
+  #     Bucket: !Ref ArtifactBucket
+
+Outputs:
+  ArtifactBucketName:
+    Description: This the bucket name of where your the Kinesis Anomaly detection application data will be stored at
+    Value: !Ref ArtifactBucket
+  RCFAnomalyDetectionApplication:
+    Description: Name of the Kinesis Anomaly detection application
+    Value: !Ref RCFAnomalyDetectionApplication
+  RealtimeApplicationNotebook:
+    Description: Name of the Kinesis realtime analysis notebook application
+    Value: !Ref RealtimeApplicationNotebook
