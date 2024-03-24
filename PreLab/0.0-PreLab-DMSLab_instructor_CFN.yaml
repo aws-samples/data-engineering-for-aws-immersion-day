@@ -238,7 +238,7 @@ Resources:
       AllocatedStorage: '500'
       AllowMajorVersionUpgrade: false
       AutoMinorVersionUpgrade: true
-      DBInstanceClass: db.t2.2xlarge
+      DBInstanceClass: db.t3.2xlarge
       DBInstanceIdentifier: dmslabinstance
       Port: '5432'
       PubliclyAccessible: true
@@ -250,7 +250,7 @@ Resources:
       PreferredMaintenanceWindow: sun:05:20-sun:05:50
       DBName: sportstickets
       Engine: postgres
-      EngineVersion: '11.20'
+      EngineVersion: '11.22'
       LicenseModel: postgresql-license
       DBSubnetGroupName: !Ref DMSLabDefaultDBSubnet
       DBParameterGroupName: !Ref DMSLabDBPG
