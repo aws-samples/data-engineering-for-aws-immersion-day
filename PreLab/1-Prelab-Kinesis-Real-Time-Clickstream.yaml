@@ -1,4 +1,3 @@
----
 AWSTemplateFormatVersion: 2010-09-09
 Description: Supporting elements for the Kinesis Analytics click stream lab
 Parameters:
@@ -19,137 +18,237 @@ Parameters:
     NoEcho: true
     AllowedPattern: "^(?=.*[A-Za-z])(?=.*\\d)[A-Za-z\\d]{6,}$"
     ConstraintDescription: Must be at least 6 alpha-numeric characters, and contain at least one number
+  PermissionsBoundaryArn:
+    Description: OPTIONAL - IAM Permissions Boundary Policy ARN to attach to new IAM Roles
+    Type: String
+    Default: ""
+
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
-      -
-        Label:
+      - Label:
           default: "Kinesis Pre Lab set up"
         Parameters:
           - "Username"
           - "Password"
           - "email"
           - "SMS"
+      - Label:
+          default: Optional / Advanced Parameters (OK to ignore)
+        Parameters:
+          - PermissionsBoundaryArn 
+Conditions:
+  SetPermissionsBoundary: !Not
+    - !Equals
+      - !Ref PermissionsBoundaryArn
+      - ""
+
+Mappings:
+  PrincipalMap:
+    aws-us-gov:
+      cognito: cognito-identity-us-gov.amazonaws.com
+    aws:
+      cognito: cognito-identity.amazonaws.com 
+
 Resources:
-  RawS3Bucket:
-    Type: AWS::S3::Bucket
-  ProcessedS3Bucket:
-    Type: AWS::S3::Bucket
-  FirehoseDeliveryStream:
-    Type: AWS::KinesisFirehose::DeliveryStream
+  KinesisDataGeneratorSecret:
+    Type: "AWS::SecretsManager::Secret"
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
     Properties:
-      S3DestinationConfiguration:
-        BucketARN: !Sub arn:aws:s3:::${RawS3Bucket}
-        BufferingHints:
-          IntervalInSeconds: 60
-          SizeInMBs: 50
-        CompressionFormat: GZIP
-        Prefix: weblogs/raw/
-        RoleARN: !GetAtt S3Role.Arn
-  S3Role:
-    Type: AWS::IAM::Role
+      Name: KinesisDataGeneratorUser
+      Description: Secret for the Cognito User for the Kinesis Data Generator
+      SecretString: !Sub '{ "username": "${Username}", "password": "${Password}" }'
+  StagingLambdaRole:
+    Type: "AWS::IAM::Role"
     Properties:
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
-          -
-            Effect: Allow
-            Principal:
-              Service: firehose.amazonaws.com
-            Action: sts:AssumeRole
-            Condition:
-              StringEquals:
-                sts:ExternalId: !Ref AWS::AccountId
-      Policies:
-        -
-          PolicyName: S3Access
-          PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              -
-                Effect: Allow
-                Action:
-                  - "s3:*"
-                Resource:
-                  - !Sub arn:aws:s3:::${RawS3Bucket}
-                  - !Sub arn:aws:s3:::${RawS3Bucket}/*
-        -
-          PolicyName: CloudWatch
-          PolicyDocument:
-            Version: 2012-10-17
-            Statement:
-              -
-                Effect: Allow
-                Action:
-                  - "cloudwatch:*"
-                  - "cloudwatchlogs:*"
-                Resource:
-                  - "*"
-  DataGenCognitoSetupLambdaFunc:
-    Type: AWS::Lambda::Function
-    Properties:
-      Code:
-        S3Bucket: !Sub aws-kdg-tools-${AWS::Region}
-        S3Key: datagen-cognito-setup.zip
-      Description: Creates a Cognito User Pool, Identity Pool, and a User.  Returns IDs to be used in the Kinesis Data Generator.
-      FunctionName: KinesisDataGeneratorCognitoSetup
-      Handler: createCognitoPool.createPoolAndUser
-      Role: !GetAtt CognitoLambdaExecutionRole.Arn
-      Runtime: nodejs18.x
-      Timeout: 60
-  CognitoLambdaExecutionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          -
-            Effect: Allow
+          - Effect: Allow
             Principal:
               Service:
                 - lambda.amazonaws.com
             Action:
               - sts:AssumeRole
+      PermissionsBoundary: !If
+        - SetPermissionsBoundary
+        - !Ref PermissionsBoundaryArn
+        - !Ref AWS::NoValue
       Path: /
       Policies:
-        -
-          PolicyName: root
+        - PolicyName: BootStrapLambdaSetup
           PolicyDocument:
-            Version: 2012-10-17
+            Version: "2012-10-17"
             Statement:
-              -
-                Effect: Allow
+              - Effect: Allow
                 Action:
-                  - logs:*
-                Resource: !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*
-              -
-                Effect: Allow
-                Action:
-                  - cognito-idp:AdminConfirmSignUp
-                  - cognito-idp:CreateUserPoolClient
-                  - cognito-idp:AdminCreateUser
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
                 Resource:
-                  - !Sub arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/*
-              -
-                Effect: Allow
+                  - !Sub "arn:${AWS::Partition}:logs:*:*:log-group:/aws/lambda/bootstrapStagingLambdaSetup*"
+              - Effect: Allow
                 Action:
-                  - cognito-idp:CreateUserPool
-                  - cognito-identity:*
+                  - "s3:PutObject"
+                Resource:
+                  - !Sub "${StagingS3Bucket.Arn}/*"
+  StagingS3Bucket:
+    Type: "AWS::S3::Bucket"
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+  StagingLambdaFunc:
+    Type: "AWS::Lambda::Function"
+    DependsOn: StagingS3Bucket
+    Properties:
+      FunctionName: bootstrapStagingLambdaSetup
+      Description: Staging Lambda to pull the zip dependency from GitHub to build the "real" setup function
+      Role: !GetAtt StagingLambdaRole.Arn
+      Runtime: python3.9
+      Timeout: 60
+      Handler: index.handler
+      Code:
+        ZipFile: |
+          import json
+          import urllib3
+          import boto3
+          import cfnresponse
+          import hashlib
+          import time
+
+          def stage_resources(event, context):
+            
+              #if True:  # Testing hook to be able to stage out of band ZIP files
+              #  time.sleep(50)  # Watch timeout setting + Initialization
+              #  return
+            
+              http = urllib3.PoolManager()
+              rsc_props = event['ResourceProperties']
+
+              bucket = rsc_props['StagingS3BucketName']
+              url_to_fetch = rsc_props['UrlLambdaZipToStage']
+              filename_key = rsc_props['FilenameKey']
+              expected_sha = rsc_props['Expected512Sha']
+
+              print(f'About to fetch URL: {url_to_fetch}')
+              resp = http.request('GET', url_to_fetch)
+              print('Done with fetch from URL.')
+              m = hashlib.sha512()
+              print('Hash complete.')
+              m.update(resp.data)
+              if expected_sha != m.hexdigest():
+                print(f'downloaded checksum does not match baseline. Expected[{expected_sha}], Got[{m.hexdigest()}]')
+                raise RunTimeError(f'downloaded checksum does not match baseline. Expected[{expected_sha}], Got[{m.hexdigest()}]')
+
+              print(f'About to put file to S3: {bucket}/{filename_key}')
+              s3 = boto3.client('s3')
+              resp = s3.put_object(
+                  Bucket=bucket,
+                  Key=filename_key,
+                  Body=resp.data,
+              )
+
+          def handler(event, context):
+              print(json.dumps(event))
+              was_i_successful = cfnresponse.FAILED
+              try:
+                  if event['RequestType'] == 'Create':
+                      print('creating')
+                      stage_resources(event, context)
+                  elif event['RequestType'] == 'Update':
+                      pass
+                  elif event['RequestType'] == 'Delete':
+                      pass
+
+                  was_i_successful = cfnresponse.SUCCESS
+              except Exception as e:
+                  print('exception thrown')
+                  print(e)
+
+              print(f'CFN Response: {was_i_successful}')
+              cfnresponse.send(event, context, was_i_successful, {})                
+  
+  ExecuteBootstrapStagingLambdaFuncCustom:
+    Type: "Custom::BootstrapStagingLambdaFunc"
+    Properties:
+      ServiceToken: !GetAtt StagingLambdaFunc.Arn
+      StagingS3BucketName: !Ref StagingS3Bucket
+      UrlLambdaZipToStage: "https://github.com/awslabs/amazon-kinesis-data-generator/blob/mainline/setup/datagen-cognito-setup.zip?raw=true"
+      FilenameKey: "datagen-cognito-setup.zip"
+      Expected512Sha: "779f78833de27c4523d27b0f792c7d3be7070fbe4bca76d480af2cb030049601e0081d44712c420e972c4bb9546c4167368671135ea0e62fe7d5d026eea584f6"
+
+  DataGenCognitoSetupLambdaFunc:
+    Type: "AWS::Lambda::Function"
+    DependsOn: ExecuteBootstrapStagingLambdaFuncCustom
+    Properties:
+      Code:
+        S3Bucket: !Ref StagingS3Bucket
+        S3Key: datagen-cognito-setup.zip
+      Description: "Creates a Cognito User Pool, Identity Pool, and a User.  Returns IDs to be used in the Kinesis Data Generator."
+      FunctionName: KinesisDataGeneratorCognitoSetup
+      Handler: createCognitoPool.createPoolAndUser
+      Role: !GetAtt SetupLambdaExecutionRole.Arn
+      Runtime: nodejs18.x
+      Timeout: 120
+  
+  SetupLambdaExecutionRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - "sts:AssumeRole"
+      PermissionsBoundary: !If
+        - SetPermissionsBoundary
+        - !Ref PermissionsBoundaryArn
+        - !Ref AWS::NoValue
+      Path: /
+      Policies:
+        - PolicyName: SetupCognitoLambda
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:logs:*:*:log-group:/aws/lambda/KinesisDataGeneratorCognitoSetup*"
+              - Effect: Allow
+                Action:
+                  - "cognito-idp:AdminConfirmSignUp"
+                  - "cognito-idp:CreateUserPoolClient"
+                  - "cognito-idp:AdminCreateUser"
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:cognito-idp:*:*:userpool/*"
+              - Effect: Allow
+                Action:
+                  - "cognito-idp:CreateUserPool"
+                  - "cognito-identity:CreateIdentityPool"
+                  - "cognito-identity:SetIdentityPoolRoles"
                 Resource: "*"
-              -
-                Effect: Allow
+              - Effect: Allow
                 Action:
-                  - iam:UpdateAssumeRolePolicy
+                  - "iam:UpdateAssumeRolePolicy"
                 Resource:
                   - !GetAtt AuthenticatedUserRole.Arn
                   - !GetAtt UnauthenticatedUserRole.Arn
-              -
-                Effect: Allow
+              - Effect: Allow
                 Action:
-                  - iam:PassRole
+                  - "iam:PassRole"
                 Resource:
                   - !GetAtt AuthenticatedUserRole.Arn
                   - !GetAtt UnauthenticatedUserRole.Arn
+  
   SetupCognitoCustom:
     Type: Custom::DataGenCognitoSetupLambdaFunc
     Properties:
@@ -161,80 +260,86 @@ Resources:
       AuthRoleArn: !GetAtt AuthenticatedUserRole.Arn
       UnauthRoleName: !Ref UnauthenticatedUserRole
       UnauthRoleArn: !GetAtt UnauthenticatedUserRole.Arn
+      Partition: !Ref AWS::Partition
+  
   AuthenticatedUserRole:
-    Type: AWS::IAM::Role
+    Type: "AWS::IAM::Role"
     Properties:
       AssumeRolePolicyDocument:
-        Version: 2012-10-17
+        Version: "2012-10-17"
         Statement:
-          -
-            Effect: Allow
+          - Effect: Allow
             Principal:
               Federated:
-                - cognito-identity.amazonaws.com
+                - !FindInMap [PrincipalMap, !Ref AWS::Partition, cognito]
             Action:
-              - sts:AssumeRoleWithWebIdentity
+              - "sts:AssumeRoleWithWebIdentity"
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud: !Ref "AWS::StackId"
+      PermissionsBoundary: !If
+        - SetPermissionsBoundary
+        - !Ref PermissionsBoundaryArn
+        - !Ref AWS::NoValue
       Path: /
       Policies:
-        -
-          PolicyName: root
+        - PolicyName: AllowStreaming
           PolicyDocument:
-            Version: 2012-10-17
+            Version: "2012-10-17"
             Statement:
-              -
-                Action:
-                  - kinesis:DescribeStream
-                  - kinesis:PutRecord
-                  - kinesis:PutRecords
+              - Action:
+                  - "kinesis:DescribeStream"
+                  - "kinesis:PutRecord"
+                  - "kinesis:PutRecords"
                 Resource:
-                  - !Sub arn:aws:kinesis:${AWS::Region}:${AWS::AccountId}:stream/*
+                  - "Fn::Sub": "arn:${AWS::Partition}:kinesis:*:*:stream/*"
                 Effect: Allow
-              -
-                Action:
-                  - firehose:DescribeDeliveryStream
-                  - firehose:PutRecord
-                  - firehose:PutRecordBatch
+              - Action:
+                  - "firehose:DescribeDeliveryStream"
+                  - "firehose:PutRecord"
+                  - "firehose:PutRecordBatch"
                 Resource:
-                  - !Sub arn:aws:firehose:${AWS::Region}:${AWS::AccountId}:deliverystream/*
+                  - "Fn::Sub": "arn:${AWS::Partition}:firehose:*:*:deliverystream/*"
                 Effect: Allow
-              -
-                Action:
-                  - mobileanalytics:PutEvents
-                  - cognito-sync:*
-                  - cognito-identity:*
-                  - ec2:DescribeRegions
-                  - firehose:ListDeliveryStreams
-                  - kinesis:ListStreams
+              - Action:
+                  - "ec2:DescribeRegions"
+                  - "firehose:ListDeliveryStreams"
+                  - "kinesis:ListStreams"
                 Resource:
                   - "*"
                 Effect: Allow
+  
   UnauthenticatedUserRole:
-    Type: AWS::IAM::Role
+    Type: "AWS::IAM::Role"
     Properties:
       AssumeRolePolicyDocument:
-        Version: 2012-10-17
+        Version: "2012-10-17"
         Statement:
-          -
-            Effect: Allow
+          - Effect: Allow
             Principal:
               Federated:
-                - cognito-identity.amazonaws.com
+                - !FindInMap [PrincipalMap, !Ref AWS::Partition, cognito]
             Action:
-              - sts:AssumeRoleWithWebIdentity
+              - "sts:AssumeRoleWithWebIdentity"
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud: !Ref "AWS::StackId"
+      PermissionsBoundary: !If
+        - SetPermissionsBoundary
+        - !Ref PermissionsBoundaryArn
+        - !Ref AWS::NoValue
       Path: /
       Policies:
-        -
-          PolicyName: root
+        - PolicyName: DenyAll
           PolicyDocument:
-            Version: 2012-10-17
+            Version: "2012-10-17"
             Statement:
-              -
-                Effect: Allow
+              - Effect: Deny
                 Action:
-                  - mobileanalytics:PutEvents
-                  - cognito-sync:*
+                  - "*"
                 Resource:
                   - "*"
+  
   CSELambdaSNSPublishRole:
     Type: AWS::IAM::Role
     Properties:
@@ -512,7 +617,61 @@ Resources:
 
       Runtime: python3.8
       Timeout: 300
-
+  
+  RawS3Bucket:
+    Type: AWS::S3::Bucket
+  ProcessedS3Bucket:
+    Type: AWS::S3::Bucket
+  FirehoseDeliveryStream:
+    Type: AWS::KinesisFirehose::DeliveryStream
+    Properties:
+      S3DestinationConfiguration:
+        BucketARN: !Sub arn:aws:s3:::${RawS3Bucket}
+        BufferingHints:
+          IntervalInSeconds: 60
+          SizeInMBs: 50
+        CompressionFormat: GZIP
+        Prefix: weblogs/raw/
+        RoleARN: !GetAtt S3Role.Arn
+  S3Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service: firehose.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                sts:ExternalId: !Ref AWS::AccountId
+      Policies:
+        -
+          PolicyName: S3Access
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              -
+                Effect: Allow
+                Action:
+                  - "s3:*"
+                Resource:
+                  - !Sub arn:aws:s3:::${RawS3Bucket}
+                  - !Sub arn:aws:s3:::${RawS3Bucket}/*
+        -
+          PolicyName: CloudWatch
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              -
+                Effect: Allow
+                Action:
+                  - "cloudwatch:*"
+                  - "cloudwatchlogs:*"
+                Resource:
+                  - "*"
   EmptyRawS3Bucket:
     Type: "Custom::EmptyS3Bucket"
     Properties:
@@ -527,7 +686,10 @@ Resources:
 Outputs:
   KinesisDataGeneratorUrl:
     Description: The URL for your Kinesis Data Generator.
-    Value: !Sub https://awslabs.github.io/amazon-kinesis-data-generator/web/producer.html?${SetupCognitoCustom.Querystring}
+    Value: !Sub "https://awslabs.github.io/amazon-kinesis-data-generator/web/producer.html?${SetupCognitoCustom.Querystring}"
+  KinesisDataGeneratorCognitoUser:
+    Description: We saved your Cognito user/password in AWS Secrets
+    Value: !Ref KinesisDataGeneratorSecret
   RawBucketName:
     Description: This the bucket name of where your Raw data will be store at
     Value: !Ref RawS3Bucket
