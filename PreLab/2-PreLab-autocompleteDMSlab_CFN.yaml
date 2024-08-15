@@ -559,7 +559,7 @@ Resources:
         !Ref DMSReplicationSubnetGroup
       PreferredMaintenanceWindow: sat:05:40-sat:06:10
       MultiAZ: false
-      EngineVersion: 3.4.7
+      EngineVersion: 3.5.3
       AutoMinorVersionUpgrade: true
       PubliclyAccessible: true
   DMSEndpointSource:
@@ -573,7 +573,7 @@ Resources:
       ServerName: !Ref ServerName
       Port: 5432
       DatabaseName: sportstickets
-      SslMode: none
+      SslMode: require
   DMSEndpointTarget:
     Type: AWS::DMS::Endpoint
     Properties:
@@ -681,7 +681,7 @@ Resources:
                   'body': json.dumps(dms_response)
               }
 
-      Runtime: python3.7
+      Runtime: python3.8
       Timeout: 60
       TracingConfig:
         Mode: Active
@@ -736,7 +736,7 @@ Resources:
                   ReplicationTaskArn = cdc_replication_task,
                   StartReplicationTaskType= 'start-replication')
 
-      Runtime: python3.7
+      Runtime: python3.8
       Timeout: 10
       TracingConfig:
         Mode: Active

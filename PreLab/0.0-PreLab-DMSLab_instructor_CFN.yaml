@@ -250,7 +250,7 @@ Resources:
       PreferredMaintenanceWindow: sun:05:20-sun:05:50
       DBName: sportstickets
       Engine: postgres
-      EngineVersion: '11.22'
+      EngineVersion: '16.4'
       LicenseModel: postgresql-license
       DBSubnetGroupName: !Ref DMSLabDefaultDBSubnet
       DBParameterGroupName: !Ref DMSLabDBPG
@@ -272,7 +272,7 @@ Resources:
     Type: AWS::RDS::DBParameterGroup
     Properties:
       Description: Parameter for Ticket RedshiftDatabaseName
-      Family: postgres11
+      Family: postgres16
       Parameters:
         rds.logical_replication: '1'
         wal_sender_timeout: '0'
