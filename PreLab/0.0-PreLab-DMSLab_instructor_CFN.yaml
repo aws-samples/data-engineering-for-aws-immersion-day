@@ -3,7 +3,7 @@ AWSTemplateFormatVersion: "2010-09-09"
 Parameters:
   LatestAmiId:
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
-    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
+    Default: '/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64'
   SourceBucket:
     Description: S3 bucket which contains the source object
     Default: aws-dataengineering-day.workshop.aws
@@ -199,9 +199,8 @@ Resources:
           Content-Disposition: attachment; filename="userdata.txt"
 
           #!/bin/bash -xe
-          yum install -y postgresql
-          yum install -y git
-          yum update -y
+          dnf update -y
+          dnf install postgresql15 git -y
           cd /home/ec2-user
           DIR="aws-database-migration-samples"
           if [ ! -d "$DIR" ]; then
@@ -211,7 +210,7 @@ Resources:
           export PGPASSWORD=admin123
           export ENDPOINT=${RDSDMSLabDB.Endpoint.Address}
 
-          nohup psql --host=${!ENDPOINT} --port=5432 --dbname=sportstickets --username=adminuser -f install-postgresql.sql
+          nohup /usr/bin/psql --host=${!ENDPOINT} --port=5432 --dbname=sportstickets --username=adminuser -f install-postgresql.sql
       Monitoring: false
       Tags:
         -
