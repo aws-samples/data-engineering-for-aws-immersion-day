@@ -277,6 +277,7 @@ Resources:
         wal_sender_timeout: '0'
         max_wal_senders: '20'
         max_replication_slots: '50'
+        rds.force_ssl: '0'
   DMSLabSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
