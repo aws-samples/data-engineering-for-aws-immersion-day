@@ -24,7 +24,7 @@ Click the **Deploy to AWS** icons below to stand up the RDS database infrastruct
 
 | Region | Launch Template |
 | ------------ | ------------- | 
-**N.Virginia** (us-east-1) | [![Launch CloudFormation](/ee_helper/assets/images/00-deploy-to-aws.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?stackName=dmslab-instructor&templateURL=https://s3.amazonaws.com/aws-dataengineering-day.workshop.aws/DMSLab_instructor_CFN.yaml) 
+**N.Virginia** (us-east-1) | [![Launch CloudFormation](/ee_helper/assets/images/00-deploy-to-aws.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?stackName=dmslab-instructor&templateURL=https://s3.amazonaws.com/ws-assets-prod-iad-r-iad-ed304a55c2ca1aee/976050cc-0606-4b23-b49f-ca7b8ac4b153/v1/DMSLab_instructor_CFN.yaml) 
 
 ### What you'll do:
 
@@ -70,7 +70,7 @@ Click the **Deploy to AWS** icons below to stand up the core workshop infrastruc
 
 | Region | Launch Template |
 | ------------ | ------------- | 
-**N.Virginia** (us-east-1) | [![Launch CloudFormation](/ee_helper/assets/images/00-deploy-to-aws.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?stackName=dmslab-student&templateURL=https://s3.amazonaws.com/aws-dataengineering-day.workshop.aws/DMSlab_student_CFN.yaml)  
+**N.Virginia** (us-east-1) | [![Launch CloudFormation](/ee_helper/assets/images/00-deploy-to-aws.png)](https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?stackName=dmslab-student&templateURL=https://s3.amazonaws.com/ws-assets-prod-iad-r-iad-ed304a55c2ca1aee/976050cc-0606-4b23-b49f-ca7b8ac4b153/v1/DMSlab_student_CFN.yaml)  
 
 
 2. The template will automatically take you to the CloudFormation Console and start the stack creation process in **N.Virginia** region.
@@ -178,7 +178,7 @@ In this lab, we show you how to query petabytes of data with Amazon Redshift and
 ## Before You Begin
 
 This lab requires a new Redshift cluster in **US-WEST-2 (Oregon)**, use the following link to <br>
-[![Launch](/ee_helper/assets/images/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/create/review?stackName=redshift-lab&templateURL=https://s3.amazonaws.com/aws-dataengineering-day.workshop.aws/Redshift_PreLab_CFN.yaml&param_DatabaseName=dev&param_ClusterType=multi-node&param_NumberOfNodes=2&param_NodeType=ds2.8xlarge&param_MasterUsername=awsuser&param_MasterUserPassword=Awsuser123&param_InboundTraffic=0.0.0.0/0&param_PortNumber=5439)
+[![Launch](/ee_helper/assets/images/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/create/review?stackName=redshift-lab&templateURL=https://s3.amazonaws.com/ws-assets-prod-iad-r-iad-ed304a55c2ca1aee/976050cc-0606-4b23-b49f-ca7b8ac4b153/v1/Redshift_PreLab_CFN.yaml&param_DatabaseName=dev&param_ClusterType=multi-node&param_NumberOfNodes=2&param_NodeType=ds2.8xlarge&param_MasterUsername=awsuser&param_MasterUserPassword=Awsuser123&param_InboundTraffic=0.0.0.0/0&param_PortNumber=5439)
 
 And gather the following information from the stack output above:
 * [Your-Redshift_Hostname]
