@@ -308,13 +308,13 @@ Resources:
                 Effect: Allow
                 Action:
                   - s3:ListBucket
-                Resource: arn:aws:s3:::aws-dataengineering-day.workshop.aws
+                Resource: arn:aws:s3:::ws-assets-prod-iad-r-iad-ed304a55c2ca1aee
               -
                 Sid: GetObjectFromDEBucket
                 Effect: Allow
                 Action:
                   - s3:GetObject
-                Resource: arn:aws:s3:::aws-dataengineering-day.workshop.aws/*  
+                Resource: arn:aws:s3:::ws-assets-prod-iad-r-iad-ed304a55c2ca1aee/976050cc-0606-4b23-b49f-ca7b8ac4b153/v1/*  
   DMSCloudWatchLogRole:
     Type: AWS::IAM::Role
     Condition: DMSCWRoleExist

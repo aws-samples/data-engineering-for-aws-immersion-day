@@ -35,11 +35,11 @@ Parameters:
     Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
   SourceBucket:
     Description: S3 bucket which contains the source object
-    Default: aws-dataengineering-day.workshop.aws
+    Default: ws-assets-prod-iad-r-iad-ed304a55c2ca1aee
     Type: String
   SourceKey:
     Description: S3 Key which contains the source object
-    Default: dmslambda_v1.zip
+    Default: 976050cc-0606-4b23-b49f-ca7b8ac4b153/v1/dmslambda_v1.zip
     Type: String
 Conditions:
   # Used to optionally exclude the subscription of Lambda functions (or other

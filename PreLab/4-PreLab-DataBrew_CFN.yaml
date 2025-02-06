@@ -3,11 +3,11 @@ AWSTemplateFormatVersion: '2010-09-09'
 Parameters:
   SourceBucket:
     Description: S3 bucket which contains the source object
-    Default: aws-dataengineering-day.workshop.aws
+    Default: ws-assets-prod-iad-r-iad-ed304a55c2ca1aee
     Type: String
   SourceKey:
     Description: S3 Key which contains the source object
-    Default: states_daily.csv.gz
+    Default: 976050cc-0606-4b23-b49f-ca7b8ac4b153/v1/states_daily.csv.gz
     Type: String
 Resources:
   DataBrewOutputS3Bucket:
@@ -29,8 +29,8 @@ Resources:
             Resource:
               - !GetAtt DataBrewOutputS3Bucket.Arn
               - !Sub "arn:aws:s3:::${DataBrewOutputS3Bucket}/*"
-              - arn:aws:s3:::aws-dataengineering-day.workshop.aws
-              - arn:aws:s3:::aws-dataengineering-day.workshop.aws/*
+              - arn:aws:s3:::ws-assets-prod-iad-r-iad-ed304a55c2ca1aee
+              - arn:aws:s3:::ws-assets-prod-iad-r-iad-ed304a55c2ca1aee/976050cc-0606-4b23-b49f-ca7b8ac4b153/v1/*
 
   DataBrewLabRole:
     Type: AWS::IAM::Role
