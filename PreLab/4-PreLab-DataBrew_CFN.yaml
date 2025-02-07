@@ -30,7 +30,7 @@ Resources:
               - !GetAtt DataBrewOutputS3Bucket.Arn
               - !Sub "arn:aws:s3:::${DataBrewOutputS3Bucket}/*"
               - arn:aws:s3:::ws-assets-prod-iad-r-iad-ed304a55c2ca1aee
-              - arn:aws:s3:::ws-assets-prod-iad-r-iad-ed304a55c2ca1aee/976050cc-0606-4b23-b49f-ca7b8ac4b153/v1/*
+              - arn:aws:s3:::ws-assets-prod-iad-r-iad-ed304a55c2ca1aee/*
 
   DataBrewLabRole:
     Type: AWS::IAM::Role
@@ -78,9 +78,6 @@ Resources:
                   - s3:GetObject
                   - s3:DeleteObject
                 Resource: !Sub arn:aws:s3:::${DataBrewOutputS3Bucket}/*
-              - Effect: Allow
-                Action: s3:ListBucket
-                Resource: !Sub arn:aws:s3:::${DataBrewOutputS3Bucket}
               - Effect: Allow
                 Action: s3:ListBucket
                 Resource: !Sub arn:aws:s3:::${DataBrewOutputS3Bucket}
