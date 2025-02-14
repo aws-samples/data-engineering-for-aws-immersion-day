@@ -4,34 +4,67 @@ Outputs:
   DMSLabRoleS3:
     Description: The DMS serivce role
     Value: !GetAtt DMSLabRoleS3.Arn
+    Export:
+      Name: DMSLabRoleS3
   GlueLabRole:
     Description: The Glue service role
     Value: !Ref GlueLabRole
+    Export:
+      Name: GlueLabRole
   BucketName:
     Description: S3 Bucket that was created
     Value: !Ref DMSLabS3Bucket
+    Export:
+      Name: BucketName
   S3BucketWorkgroupA:
     Description: S3 Bucket for storing workgroup A results
     Value: !Ref S3BucketWorkgroupA
+    Export:
+      Name: S3BucketWorkgroupA
   S3BucketWorkgroupB:
     Description: S3 bucket for storing workgroup B results
     Value: !Ref S3BucketWorkgroupB
+    Export:
+      Name: S3BucketWorkgroupB
   BusinessAnalystUser:
     Description: business_analyst_user for Workgroup A
     Value: !Ref BusinessAnalystUser
+    Export:
+      Name: BusinessAnalystUser
   WorkgroupManagerUser:
     Description: workgroup_manager_user for access to Workgroup A and Workgroup B
     Value: !Ref WorkgroupManagerUser
+    Export:
+      Name: WorkgroupManagerUser
   LakeFormationRole:
     Description: Lake Formation IAM role
     Value: !Ref LakeFormationWorkflowRole
+    Export:
+      Name: LakeFormationRole
   SecurityGroupId:
     Description: Default Security Group Id
     Value: !Ref sgdefault
+    Export:
+      Name: SecurityGroupId
+  VPCId:
+    Description: VPC Id
+    Value: !Ref dmslabstudentvpc
+    Export:
+      Name: VPCId
   SubnetId:
     Description: Subnet ID to be used with database connector
     Value: !Ref dmslabstudentsubnet1
+    Export:
+      Name: SubnetId
 Parameters:
+  DMSVPCRoleCreated:
+    Description: dms-vpc-role already created in account?
+    Default: no
+    Type: String
+    AllowedValues:
+      - no
+      - yes
+    ConstraintDescription: Must specify 'yes' or 'no'
   DMSCWRoleCreated:
     Description: dms-cloudwatch-logs-role already created in account?
     Default: no
@@ -41,6 +74,10 @@ Parameters:
       - yes
     ConstraintDescription: must specify 'yes' or 'no'.
 Conditions:
+  DMSVPCRoleExist:
+    Fn::Equals:
+      - !Ref DMSVPCRoleCreated
+      - no
   DMSCWRoleExist:
     Fn::Equals:
       - !Ref DMSCWRoleCreated
@@ -314,7 +351,26 @@ Resources:
                 Effect: Allow
                 Action:
                   - s3:GetObject
-                Resource: arn:aws:s3:::ws-assets-prod-iad-r-iad-ed304a55c2ca1aee/976050cc-0606-4b23-b49f-ca7b8ac4b153/v1/*  
+                Resource: arn:aws:s3:::ws-assets-prod-iad-r-iad-ed304a55c2ca1aee/*
+  DmsVpcRole:
+    Type: AWS::IAM::Role
+    Condition: DMSVPCRoleExist
+    Properties:
+      RoleName: dms-vpc-role
+      Description: Do not create the role to avoid duplication error, if it exists already
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - dms.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonDMSVPCManagementRole          
   DMSCloudWatchLogRole:
     Type: AWS::IAM::Role
     Condition: DMSCWRoleExist
@@ -596,3 +652,4 @@ Resources:
     Properties:
       ServiceToken: !GetAtt S3BucketHandler.Arn
       Bucket: !Ref S3BucketWorkgroupB
+      
