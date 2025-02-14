@@ -36,7 +36,7 @@ Parameters:
     Type: String
   DMSVPCRoleCreated:
     Description: dms-vpc-role already created in account?
-    Default: no
+    Default: yes
     Type: String
     AllowedValues:
       - no
@@ -412,7 +412,7 @@ Resources:
                 Effect: Allow
                 Action:
                   - s3:GetObject
-                Resource: arn:aws:s3:::ws-assets-prod-iad-r-iad-ed304a55c2ca1aee/976050cc-0606-4b23-b49f-ca7b8ac4b153/v1/*
+                Resource: arn:aws:s3:::ws-assets-prod-iad-r-iad-ed304a55c2ca1aee/*
   DMSCloudWatchLogRole:
     Type: AWS::IAM::Role
     Condition: DMSCWRoleExist
@@ -541,7 +541,7 @@ Resources:
   DMSReplicationSubnetGroup:
     Type: AWS::DMS::ReplicationSubnetGroup
     Properties:
-      ReplicationSubnetGroupIdentifier: DMSReplicationSubnetGroup
+      ReplicationSubnetGroupIdentifier: AUTODMSReplicationSubnetGroup
       ReplicationSubnetGroupDescription: subnet group for DMS Replication
       SubnetIds:
         - !Ref dmslabstudentsubnet1
@@ -550,7 +550,7 @@ Resources:
     DependsOn: gw1
     Type: AWS::DMS::ReplicationInstance
     Properties:
-      ReplicationInstanceIdentifier: dmsreplication-instance
+      ReplicationInstanceIdentifier: autodms-replication-instance
       ReplicationInstanceClass: dms.t3.medium
       AllocatedStorage: 50
       VpcSecurityGroupIds:
@@ -565,7 +565,7 @@ Resources:
   DMSEndpointSource:
     Type: AWS::DMS::Endpoint
     Properties:
-      EndpointIdentifier: rds-source-endpoint
+      EndpointIdentifier: autodms-rds-source-endpoint
       EndpointType: source
       EngineName: postgres
       Username: adminuser
@@ -577,7 +577,7 @@ Resources:
   DMSEndpointTarget:
     Type: AWS::DMS::Endpoint
     Properties:
-      EndpointIdentifier: s3-target-endpoint
+      EndpointIdentifier: autodms-s3-target-endpoint
       EndpointType: target
       EngineName: s3
       ExtraConnectionAttributes: addColumnName=true;
@@ -589,7 +589,7 @@ Resources:
   CDCEndpointTarget:
     Type: AWS::DMS::Endpoint
     Properties:
-      EndpointIdentifier: rds-cdc-endpoint
+      EndpointIdentifier: autodms-rds-cdc-endpoint
       EndpointType: target
       EngineName: s3
       ExtraConnectionAttributes: addColumnName=true;
@@ -760,7 +760,7 @@ Resources:
   DMSReplicationTask:
     Type: AWS::DMS::ReplicationTask
     Properties:
-      ReplicationTaskIdentifier: dms-task-full-dump
+      ReplicationTaskIdentifier: autodms-task-full-dump
       SourceEndpointArn: !Ref DMSEndpointSource
       TargetEndpointArn: !Ref DMSEndpointTarget
       ReplicationInstanceArn: !Ref DMSReplicationInstance
@@ -770,7 +770,7 @@ Resources:
   CDCTask:
     Type: AWS::DMS::ReplicationTask
     Properties:
-      ReplicationTaskIdentifier: cdctask
+      ReplicationTaskIdentifier: autodms-cdctask
       SourceEndpointArn: !Ref DMSEndpointSource
       TargetEndpointArn: !Ref CDCEndpointTarget
       ReplicationInstanceArn: !Ref DMSReplicationInstance
